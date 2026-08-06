@@ -2,7 +2,7 @@
 # METHODOLOGY
 
 ## Research Design
-The researchers will utilize a combination of **Developmental Research** and **Descriptive Research** designs. Developmental research will be employed to systematically design, develop, and evaluate the Web-Based Queue Management System for the Business Permits and Licensing Office (BPLO) of Rosario. This approach is appropriate as the primary goal of the study is to create a functional technological solution to an existing problem. 
+The researchers will utilize a combination of **Developmental Research** and **Descriptive Research** designs. Developmental research will be employed to systematically design, develop, and evaluate the Real-Time LAN-Based Queuing Management and Statistical Reporting System for the Business Permit and Licensing Office (BPLO). This approach is appropriate as the primary goal of the study is to create a functional technological solution to an existing problem.
 
 Simultaneously, descriptive research will be used during the evaluation phase to assess the system's acceptability, efficiency, and usability. This will involve surveying the end-users (BPLO staff and citizens) to describe their experience and gather quantitative feedback on the system's performance compared to the traditional manual queueing method.
 
@@ -63,7 +63,7 @@ The respondents will rate the system's usability, efficiency, and reliability us
 *   **2** - Disagree (Fair)
 *   **1** - Strongly Disagree (Poor)
 
-The formula for the weighted mean will be used to interpret the overall acceptability of the web-based queue management system.
+The formula for the weighted mean will be used to interpret the overall acceptability of the queuing management and statistical reporting system.
 
 ## LITERATURE CITED
 
