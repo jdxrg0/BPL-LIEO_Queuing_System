@@ -11,6 +11,15 @@ export default function StaffDashboard({ user }) {
   const [currentServingList, setCurrentServingList] = useState([]);
   const [postponedTickets, setPostponedTickets] = useState([]);
   const [showReturnsModal, setShowReturnsModal] = useState(false);
+  const [isClosingReturnsModal, setIsClosingReturnsModal] = useState(false);
+
+  const handleCloseReturnsModal = () => {
+    setIsClosingReturnsModal(true);
+    setTimeout(() => {
+      setShowReturnsModal(false);
+      setIsClosingReturnsModal(false);
+    }, 280);
+  };
 
   const activeCounterId = user?.counterId;
   const activeCounterName = user?.counter?.name || 'Unknown Window';
@@ -232,15 +241,15 @@ export default function StaffDashboard({ user }) {
 
       {/* Returns Modal */}
       {showReturnsModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: 'var(--surface)', borderRadius: '8px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+        <div className={`modal-overlay ${isClosingReturnsModal ? 'modal-overlay-close' : ''}`} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className={`modal-card ${isClosingReturnsModal ? 'modal-card-close' : ''}`} style={{ background: 'var(--surface)', borderRadius: '8px', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
             <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-color)' }}>
-              <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.2rem' }}>Postponed Tickets</h3>
-              <button onClick={() => setShowReturnsModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
+              <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.2rem' }}>Postponed Tickets</h3>
+              <button onClick={handleCloseReturnsModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
             </div>
             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
               {postponedTickets.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#64748b', margin: '2rem 0' }}>No tickets are currently postponed.</p>
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '2rem 0' }}>No tickets are currently postponed.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {postponedTickets.map(ticket => (
@@ -253,7 +262,7 @@ export default function StaffDashboard({ user }) {
                       <button 
                         onClick={() => {
                           handleStatusUpdate(ticket.id, 'WAITING');
-                          setShowReturnsModal(false);
+                          handleCloseReturnsModal();
                         }} 
                         className="btn" 
                         style={{ background: 'var(--success)', color: '#ffffff', border: 'none', padding: '0.4rem 1rem', fontSize: '0.9rem', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}
