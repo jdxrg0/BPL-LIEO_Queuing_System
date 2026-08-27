@@ -60,15 +60,18 @@ export default function KioskMode() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)' }}>
       {/* Header */}
-      <div style={{ background: 'var(--primary)', color: 'white', padding: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+      <header className="kiosk-header">
         {settings?.logoBase64 && (
-          <img src={settings.logoBase64} alt="Logo" style={{ height: '60px', objectFit: 'contain' }} />
+          <>
+            <img src={settings.logoBase64} alt="Logo" className="kiosk-header__logo" />
+            <span className="kiosk-header__divider" />
+          </>
         )}
         <div>
-          <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0' }}>{settings?.websiteName || 'BPLO System'}</h1>
-          <p style={{ fontSize: '1.2rem', margin: 0, opacity: 0.9 }}>Welcome! Please select your transaction type.</p>
+          <h1 className="kiosk-header__title">{settings?.websiteName || 'BPLO System'}</h1>
+          <p className="kiosk-header__subtitle">Welcome! Please select your transaction type.</p>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
@@ -88,32 +91,22 @@ export default function KioskMode() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', maxWidth: '1000px', width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', maxWidth: '1040px', width: '100%', alignItems: 'stretch' }}>
             {services.map(s => (
               <button
                 key={s.id}
                 onClick={() => handleSelectService(s.id)}
-                className="card"
-                style={{ 
-                  background: 'var(--surface)', 
-                  border: '2px solid transparent',
-                  cursor: 'pointer',
-                  padding: '3rem 2rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                }}
-                onMouseOver={e => e.currentTarget.style.borderColor = 'var(--primary)'}
-                onMouseOut={e => e.currentTarget.style.borderColor = 'transparent'}
+                className="kiosk-service-btn"
               >
-                <div style={{ background: '#eff6ff', color: 'var(--primary)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 'bold' }}>
-                  {s.prefix}
-                </div>
-                <h2 style={{ fontSize: '1.75rem', color: 'var(--text-main)' }}>{s.name}</h2>
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{s.description}</p>
+                <span className="kiosk-service-btn__badge">{s.prefix}</span>
+                <h2 className="kiosk-service-btn__name">{s.name}</h2>
+                <p className="kiosk-service-btn__desc">{s.description}</p>
+                <span className="kiosk-service-btn__cta">
+                  Get ticket
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
               </button>
             ))}
           </div>
