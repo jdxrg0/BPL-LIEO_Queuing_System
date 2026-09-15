@@ -6,6 +6,7 @@ export default function TVDisplay() {
   const [isStarted, setIsStarted] = useState(false);
   const [settings, setSettings] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [liveWaitTimes, setLiveWaitTimes] = useState({});
 
   // Parse Multi-Monitor URL Parameters
   const searchParams = new URLSearchParams(window.location.search);
@@ -46,7 +47,12 @@ export default function TVDisplay() {
 
   const fetchRecent = async () => {
     try {
-      const tickets = await api.getRecentCalled();
+      const [tickets, waitTimes] = await Promise.all([
+        api.getRecentCalled(),
+        api.getLiveWaitTimes()
+      ]);
+      setLiveWaitTimes(waitTimes);
+      
       if (tickets.length > 0) {
         const myTickets = tickets.filter(t => (t.id % totalMonitors) === (monitorIdx - 1));
         setDisplayTickets(myTickets);
@@ -108,14 +114,14 @@ export default function TVDisplay() {
 
   if (!isStarted) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', textAlign: 'center', padding: '2rem' }}>
-        <div style={{ background: '#1e293b', border: '2px solid #3b82f6', padding: '3rem 4rem', borderRadius: '1rem', boxShadow: '0 10px 25px rgba(59, 130, 246, 0.2)' }}>
-          <h1 style={{ color: 'white', fontSize: '2.5rem', margin: '0 0 1rem 0' }}>TV Display Ready {totalMonitors > 1 ? `(Monitor ${monitorIdx} of ${totalMonitors})` : ''}</h1>
-          <p style={{ color: '#94a3b8', fontSize: '1.2rem', marginBottom: '2rem' }}>The browser requires permission to go Fullscreen and play Audio.</p>
-          <div style={{ display: 'inline-block', background: '#3b82f6', color: 'white', padding: '1rem 3rem', fontSize: '1.5rem', borderRadius: '0.5rem', fontWeight: 'bold', animation: 'pulse 2s infinite' }}>
+      <div className="flex items-center justify-center h-screen bg-slate-900 text-center p-8">
+        <div className="bg-slate-800 border-2 border-blue-500 py-12 px-16 rounded-2xl shadow-[0_10px_25px_rgba(59,130,246,0.2)]">
+          <h1 className="text-white text-4xl m-0 mb-4 font-bold">TV Display Ready {totalMonitors > 1 ? `(Monitor ${monitorIdx} of ${totalMonitors})` : ''}</h1>
+          <p className="text-slate-400 text-xl mb-8">The browser requires permission to go Fullscreen and play Audio.</p>
+          <div className="inline-block bg-blue-500 text-white py-4 px-12 text-2xl rounded-lg font-bold animate-pulse cursor-pointer">
             Press the SPACEBAR on your keyboard
           </div>
-          <p style={{ color: '#64748b', fontSize: '1rem', marginTop: '1.5rem' }}>(or click anywhere on this screen)</p>
+          <p className="text-slate-500 text-base mt-6">(or click anywhere on this screen)</p>
         </div>
       </div>
     );
@@ -123,8 +129,8 @@ export default function TVDisplay() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', color: '#94a3b8' }}>
-         <h2>Loading Display...</h2>
+      <div className="flex items-center justify-center h-screen bg-slate-900 text-slate-400">
+         <h2 className="text-2xl font-bold">Loading Display...</h2>
       </div>
     );
   }
@@ -132,42 +138,24 @@ export default function TVDisplay() {
   const rowCount = Math.max(1, Math.ceil(displayTickets.length / 2));
 
   return (
-    <div style={{ background: '#dc2626', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="bg-red-600 h-screen flex flex-col overflow-hidden">
       {/* Sticky Header */}
-      <div style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 10,
-        padding: '1vh 2vw', 
-        background: '#7f1d1d', // Dark Red
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
-      }}>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '2vw' }}>
+      <div className="sticky top-0 z-10 px-[2vw] py-[1vh] bg-red-900 shadow-md flex justify-between items-center">
+         <div className="flex items-center gap-[2vw]">
            {settings?.logoBase64 && (
-             <img src={settings.logoBase64} alt="Logo" style={{ height: '4vh', objectFit: 'contain' }} />
+             <img src={settings.logoBase64} alt="Logo" className="h-[4vh] object-contain" />
            )}
-           <h1 style={{ color: '#fef08a', margin: 0, fontSize: '4vh', letterSpacing: '0.15em', fontWeight: 900, textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}>
+           <h1 className="text-yellow-200 m-0 text-[4vh] tracking-[0.15em] font-black drop-shadow-[2px_2px_0px_rgba(0,0,0,0.5)]">
              NOW SERVING {settings?.websiteName ? `- ${settings.websiteName.toUpperCase()}` : ''}
            </h1>
          </div>
          {totalMonitors > 1 && (
-           <span style={{ color: '#fca5a5', fontSize: '2vh', fontWeight: 'bold' }}>Monitor {monitorIdx} of {totalMonitors}</span>
+           <span className="text-red-300 text-[2vh] font-bold">Monitor {monitorIdx} of {totalMonitors}</span>
          )}
       </div>
 
       {/* Dynamic 2-Column Grid */}
-      <div style={{ 
-        flex: 1, 
-        padding: '0.5vh', 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        alignContent: 'start', // Prevents rows from stretching to fill the screen vertically
-        gap: '0.5vh', 
-        overflow: 'hidden'
-      }}>
+      <div className="flex-1 p-[0.5vh] grid grid-cols-2 content-start gap-[0.5vh] overflow-hidden">
         {displayTickets.length > 0 ? (
             displayTickets.map(t => {
               // Mathematical guarantee:
@@ -177,49 +165,54 @@ export default function TVDisplay() {
               const maxFontVh = Math.max(1, (93 - (2.5 * rowCount)) / rowCount);
               
               return (
-                <div key={t.id} style={{ 
-                  background: '#facc15', // Vibrant Yellow
-                  borderRadius: '1vh', 
-                  border: '0.4vh solid #7f1d1d', // Dark Red Border
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between', // Keeps them on opposite ends
-                  padding: '0.5vh 1.5cqw', // Vertical padding strictly in vh
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4), inset 0 4px 6px -1px rgba(255,255,255,0.5)',
-                  // Magic Container Queries to scale text!
-                  containerType: 'inline-size', // We only care about horizontal scaling now
-                  width: '100%'
-                }}>
-                  <div style={{ 
-                    whiteSpace: 'nowrap', 
-                    overflow: 'hidden', 
-                    fontSize: `min(8.5cqw, ${maxFontVh}vh)`, 
-                    color: '#b91c1c', 
-                    fontWeight: 900, 
-                    textShadow: '2px 2px 0px rgba(255,255,255,0.4)', 
-                    lineHeight: 1 
-                  }}>
+                <div key={t.id} className="bg-yellow-400 rounded-[1vh] border-[0.4vh] border-solid border-red-900 flex items-center justify-between px-[1.5cqw] py-[0.5vh] shadow-[0_10px_15px_-3px_rgba(0,0,0,0.4),inset_0_4px_6px_-1px_rgba(255,255,255,0.5)] w-full relative overflow-hidden"
+                     style={{ containerType: 'inline-size' }}>
+                  
+                  {/* Priority Badge */}
+                  {t.priorityType && t.priorityType !== 'REGULAR' && (
+                    <div className="absolute top-0 right-0 bg-red-600 text-white font-black px-[1cqw] py-[0.2vh] rounded-bl-[1vh] drop-shadow-md z-10 uppercase"
+                         style={{ fontSize: `min(2.5cqw, ${maxFontVh * 0.3}vh)` }}>
+                      {t.priorityType} Priority
+                    </div>
+                  )}
+
+                  <div className="whitespace-nowrap overflow-hidden text-red-700 font-black drop-shadow-[2px_2px_0px_rgba(255,255,255,0.4)] leading-none relative z-0"
+                       style={{ fontSize: `min(8.5cqw, ${maxFontVh}vh)` }}>
                     {t.number}
                   </div>
-                  <div style={{ 
-                    whiteSpace: 'nowrap',
-                    paddingLeft: '1vw',
-                    fontSize: `min(8.5cqw, ${maxFontVh}vh)`, // EXACT SAME dynamic formula
-                    color: '#7f1d1d', 
-                    fontWeight: 800, 
-                    textAlign: 'right', 
-                    lineHeight: 1 
-                  }}>
+                  <div className="whitespace-nowrap pl-[1vw] text-red-900 font-extrabold text-right leading-none mt-[1vh] relative z-0"
+                       style={{ fontSize: `min(7cqw, ${maxFontVh * 0.8}vh)` }}>
                     {t.counter.name.replace('Window ', 'W')}
                   </div>
                 </div>
               );
             })
         ) : (
-          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <h1 style={{ fontSize: '4rem', color: '#fca5a5', textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Waiting for tickets...</h1>
+          <div className="col-span-full flex items-center justify-center min-h-[50vh]">
+            <h1 className="text-6xl text-red-300 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.2)] font-bold">Waiting for tickets...</h1>
           </div>
         )}
+      </div>
+
+      {/* Live Status Footer */}
+      <div className="bg-slate-900 text-white flex items-center overflow-hidden h-[6vh] shrink-0 border-t-4 border-yellow-400">
+        <div className="bg-yellow-400 text-red-900 font-black text-[2.5vh] px-[2vw] h-full flex items-center whitespace-nowrap z-10 shadow-[4px_0_10px_rgba(0,0,0,0.5)] uppercase tracking-wider">
+          LIVE QUEUE STATUS
+        </div>
+        <div className="flex-1 whitespace-nowrap flex items-center px-[2vw] text-[2.5vh] font-bold text-slate-300 gap-[4vw] marquee-animation">
+          <span className="flex items-center gap-[1vw]">
+            <span className="text-emerald-400 bg-emerald-400/20 px-2 py-0.5 rounded border border-emerald-400/30">New App</span>
+            ~{liveWaitTimes['NW'] || 0} mins
+          </span>
+          <span className="flex items-center gap-[1vw]">
+            <span className="text-indigo-400 bg-indigo-400/20 px-2 py-0.5 rounded border border-indigo-400/30">Renewal</span>
+            ~{liveWaitTimes['RNW'] || 0} mins
+          </span>
+          <span className="flex items-center gap-[1vw]">
+            <span className="text-rose-400 bg-rose-400/20 px-2 py-0.5 rounded border border-rose-400/30">Retirement</span>
+            ~{liveWaitTimes['R'] || 0} mins
+          </span>
+        </div>
       </div>
     </div>
   );

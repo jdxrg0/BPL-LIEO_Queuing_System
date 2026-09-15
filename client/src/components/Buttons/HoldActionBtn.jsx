@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function HoldActionBtn({ onAction, text, style, className, holdTime = 600 }) {
+export default function HoldActionBtn({ onAction, text, children, style, className, holdTime = 600 }) {
   const [progress, setProgress] = useState(0);
   const timerRef = useRef(null);
 
@@ -69,8 +69,8 @@ export default function HoldActionBtn({ onAction, text, style, className, holdTi
         transition: progress === 0 ? 'none' : 'width 0.05s linear',
         zIndex: 1
       }}></div>
-      <span style={{ position: 'relative', zIndex: 2 }}>
-        {text}
+      <span style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+        {children || text}
       </span>
     </button>
   );

@@ -11,15 +11,19 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5",
+    "@prisma/client": "^5.14.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "@prisma/client": "^5.14.0"
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.0",
-    "prisma": "^5.14.0",
-    "concurrently": "^8.2.2"
+    "prisma": "^5.14.0"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

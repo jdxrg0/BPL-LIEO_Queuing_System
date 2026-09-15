@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import StaffDashboard from './components/StaffDashboard';
-import TVDisplay from './components/TVDisplay';
-import KioskMode from './components/KioskMode';
-import AdminDashboard from './components/AdminDashboard';
-import PrintTickets from './components/PrintTickets';
-import PrintStats from './components/PrintStats';
-import Login from './components/Login';
-import Layout from './components/Layout';
+import StaffDashboard from './pages/StaffDashboard';
+import ReceptionistDashboard from './pages/ReceptionistDashboard';
+import TVDisplay from './pages/TVDisplay';
+import AdminDashboard from './pages/AdminDashboard';
+import PrintTickets from './components/Print/PrintTickets';
+import PrintStats from './components/Print/PrintStats';
+import Login from './pages/Login';
+import Layout from './components/Layout/Layout';
 import { api, socket } from './api';
 
 function App() {
@@ -75,12 +75,13 @@ function App() {
       <Route path="/print-tickets" element={<PrintTickets />} />
       <Route path="/print-stats" element={<PrintStats />} />
       <Route path="/display" element={<TVDisplay />} />
-      <Route path="/kiosk" element={<KioskMode />} />
 
       {/* Protected Routes Wrapper */}
       <Route element={user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
-        {/* Route for Staff */}
-        <Route path="/staff" element={<StaffDashboard user={user} />} />
+        {/* Route for Staff/Receptionist */}
+        <Route path="/staff" element={
+          user?.role === 'RECEPTIONIST' ? <ReceptionistDashboard user={user} /> : <StaffDashboard user={user} />
+        } />
         
         {/* Route for Admin with RBAC check */}
         <Route path="/admin" element={

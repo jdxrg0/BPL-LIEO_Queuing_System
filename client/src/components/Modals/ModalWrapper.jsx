@@ -28,8 +28,8 @@ export default function ModalWrapper({ isOpen, zIndex = 100, children, bg = 'rgb
 
   return (
     <div 
-      className={`modal-overlay ${isClosing ? 'modal-overlay-close' : ''}`}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: bg, zIndex, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      className={`modal-overlay fixed inset-0 flex items-center justify-center p-4 ${isClosing ? 'modal-overlay-close' : ''}`}
+      style={{ background: bg, zIndex }}
     >
       {React.Children.map(contentToRender, child => {
         if (React.isValidElement(child)) {

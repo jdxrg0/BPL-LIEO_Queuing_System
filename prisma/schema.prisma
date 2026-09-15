@@ -54,6 +54,8 @@ model Ticket {
   createdAt        DateTime @default(now())
   servedAt         DateTime?
   completedAt      DateTime?
+  estimatedWaitMins Int?
+  priorityType     String   @default("REGULAR") // "REGULAR", "PWD", "SENIOR", "PREGNANT", "RETURNING"
 
   // Relations
   serviceId        Int
@@ -70,7 +72,8 @@ model Ticket {
 }
 
 model Settings {
-  id          Int     @id @default(1)
-  websiteName String  @default("BPLO Queuing System")
-  logoBase64  String?
+  id           Int     @id @default(1)
+  websiteName  String  @default("BPLO Queuing System")
+  logoBase64   String?
+  autoAdaptive Boolean @default(false)
 }

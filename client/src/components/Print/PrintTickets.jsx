@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api } from '../api';
+import { api } from '../../api';
 
 export default function PrintTickets() {
   const [searchParams] = useSearchParams();
