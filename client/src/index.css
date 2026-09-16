@@ -1,353 +1,121 @@
-:root {
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --bg-color: #f8fafc;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --surface: #ffffff;
-  --border: #e2e8f0;
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-bg-color: #f8fafc;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
   
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Premium Glassmorphism and Effects */
+  --color-glass-surface: rgba(255, 255, 255, 0.7);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  
+  --font-sans: 'Inter', system-ui, sans-serif;
+  
+  /* Box Shadows for Depth */
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 10px 40px -10px rgba(79, 70, 229, 0.15);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.4);
 }
 
 [data-theme='dark'] {
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --bg-color: #0f172a;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --surface: #1e293b;
-  --border: #334155;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  --color-bg-color: #0f172a;
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  
+  --color-glass-surface: rgba(30, 41, 59, 0.7);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.3);
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
+  margin: 0;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-color);
+  color: var(--color-text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Global Form Inputs */
-input, select, textarea {
-  font-family: inherit;
-  background-color: var(--surface);
-  color: var(--text-main);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+/* Animations */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-input:focus, select:focus, textarea:focus {
-  border-color: var(--primary) !important;
-  outline: none;
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }
 
-[data-theme='dark'] input, [data-theme='dark'] select, [data-theme='dark'] textarea {
-  color-scheme: dark;
-}
-
-/* Custom Premium Scrollbar (Mac-style) */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 14px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.5);
-  border-radius: 10px;
-  border: 4px solid var(--bg-color);
-  background-clip: padding-box;
+  background: #cbd5e1;
+  border-radius: 4px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(148, 163, 184, 0.8);
+  background: #94a3b8;
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Utility to ensure links don't inherit default blue globally if we don't want */
+a {
+  text-decoration: none;
+  color: inherit;
 }
 
-/* Premium Card Style */
-.card {
-  background: var(--surface);
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  padding: 1.5rem;
-  border: 1px solid var(--border);
+@keyframes marquee {
+  0% { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
 }
-
-/* Modal Animations */
-@keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes modalPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.modal-overlay {
-  animation: overlayFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.modal-card {
-  animation: modalPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes overlayFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes modalPopOut {
-  from {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-}
-
-.modal-overlay-close {
-  animation: overlayFadeOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-}
-
-.modal-card-close {
-  animation: modalPopOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-}
-
-/* Base Buttons */
-.btn {
+.marquee-animation {
+  animation: marquee 30s linear infinite;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  font-size: 0.875rem;
 }
 
-.btn-primary {
-  background-color: var(--primary);
-  color: white;
+/* Glow Pulse Hover Effect */
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 4px 0px var(--glow-color); }
+  50% { box-shadow: 0 0 12px 3px var(--glow-color); }
+  100% { box-shadow: 0 0 4px 0px var(--glow-color); }
 }
-
-.btn-primary:hover {
-  background-color: var(--primary-hover);
+.ticket-glow-hover {
+  transition: border-color 0.3s ease;
 }
-
-/* ============================
-   Kiosk
-   ============================ */
-
-.kiosk-header {
-  background: var(--primary);
-  color: white;
-  padding: 0.9rem 1.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.9rem;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
-  flex-shrink: 0;
+.ticket-glow-hover:hover {
+  animation: glowPulse 1.5s ease-in-out infinite;
 }
-
-.kiosk-header__logo {
-  height: 40px;
-  width: auto;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.kiosk-header__divider {
-  width: 1px;
-  align-self: stretch;
-  background: rgb(255 255 255 / 0.25);
-  flex-shrink: 0;
-}
-
-.kiosk-header__title {
-  font-size: 1.375rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  margin: 0;
-}
-
-.kiosk-header__subtitle {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.3;
-  margin: 0.1rem 0 0 0;
-  opacity: 0.85;
-}
-
-/* Service selection buttons */
-.kiosk-service-btn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 1.75rem;
-  font-family: inherit;
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  cursor: pointer;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -4px rgb(0 0 0 / 0.08);
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.18s ease,
-              border-color 0.18s ease;
-}
-
-/* Accent bar that sweeps in on hover */
-.kiosk-service-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--primary);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.kiosk-service-btn:hover {
-  transform: translateY(-4px);
-  border-color: var(--primary);
-  box-shadow: 0 2px 4px rgb(0 0 0 / 0.05), 0 18px 32px -12px rgb(0 0 0 / 0.22);
-}
-
-.kiosk-service-btn:hover::before {
-  transform: scaleX(1);
-}
-
-.kiosk-service-btn:active {
-  transform: translateY(-1px);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 14px -8px rgb(0 0 0 / 0.18);
-}
-
-.kiosk-service-btn:focus-visible {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 28%, transparent);
-}
-
-.kiosk-service-btn__badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
-.kiosk-service-btn:hover .kiosk-service-btn__badge {
-  background: var(--primary);
-  color: white;
-}
-
-.kiosk-service-btn__name {
-  font-size: 1.25rem;
-  font-weight: 650;
-  line-height: 1.25;
-  color: var(--text-main);
-  margin: 0;
-}
-
-.kiosk-service-btn__desc {
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.kiosk-service-btn__cta {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: auto;
-  padding-top: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.kiosk-service-btn__cta svg {
-  transition: transform 0.18s ease;
-}
-
-.kiosk-service-btn:hover .kiosk-service-btn__cta svg {
-  transform: translateX(4px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kiosk-service-btn,
-  .kiosk-service-btn::before,
-  .kiosk-service-btn__badge,
-  .kiosk-service-btn__cta svg {
-    transition: none;
-  }
-  .kiosk-service-btn:hover {
-    transform: none;
-  }
-}
-
-/* TV Display Specific */
-.display-layout {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.now-serving-area {
-  flex: 3;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: white;
-}
-
-.sidebar {
-  flex: 1;
-  background: #1e293b;
-  color: white;
-  padding: 2rem;
-}
+.glow-emerald { --glow-color: rgba(5, 150, 105, 0.35); }
+.glow-emerald:hover { border-color: #059669; }
+.glow-indigo { --glow-color: rgba(79, 70, 229, 0.35); }
+.glow-indigo:hover { border-color: #4f46e5; }
+.glow-rose { --glow-color: rgba(225, 29, 72, 0.35); }
+.glow-rose:hover { border-color: #e11d48; }

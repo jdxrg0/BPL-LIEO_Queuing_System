@@ -54,6 +54,10 @@ model Ticket {
   createdAt        DateTime @default(now())
   servedAt         DateTime?
   completedAt      DateTime?
+  estimatedWaitMins Int?
+  priorityType     String   @default("REGULAR") // "REGULAR", "PWD", "SENIOR", "PREGNANT", "RETURNING"
+  skipCount        Int      @default(0)
+  pushSubscription String?  // Stores stringified Web Push subscription object
 
   // Relations
   serviceId        Int
@@ -70,7 +74,22 @@ model Ticket {
 }
 
 model Settings {
-  id          Int     @id @default(1)
-  websiteName String  @default("BPLO Queuing System")
-  logoBase64  String?
+  id                   Int     @id @default(1)
+  websiteName          String  @default("BPLO Queuing System")
+  logoBase64           String?
+  autoAdaptive         Boolean @default(false)
+  autoBalanceThreshold Int     @default(15)
+  zipperRatio          Int     @default(3)
+  agingRate            Float   @default(0.1)
+  skipLimit            Int     @default(5)
+}
+
+model PriorityGroup {
+  id         Int     @id @default(autoincrement())
+  name       String  @unique  // e.g. "PWD", "SENIOR", "SOLO_PARENT"
+  label      String           // e.g. "Person with Disability", "Senior Citizen"
+  shortLabel String?          // e.g. "PWD", "SR" (for compact badge display)
+  weight     Int    @default(1) // 0 = regular priority, 1+ = elevated priority
+  slaThreshold Int?           // null means use global autoBalanceThreshold
+  isActive   Boolean @default(true)
 }
