@@ -247,6 +247,14 @@ const deleteUser = async (req, res) => {
     });
 
     await prisma.user.delete({ where: { id: parseInt(id) } });
+    
+    // Notify clients that the user was deleted so they can log them out if logged in
+    try {
+      socketConfig.getIo().emit('userDeleted', parseInt(id));
+    } catch (e) {
+      console.error('Socket error on deleteUser:', e);
+    }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });

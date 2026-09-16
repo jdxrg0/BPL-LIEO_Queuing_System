@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 
 export default function Login({ onLogin }) {
@@ -6,6 +6,11 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    api.getSettings().then(setSettings).catch(console.error);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -13,7 +18,7 @@ export default function Login({ onLogin }) {
     setIsLoading(true);
     try {
       const data = await api.login(username, password);
-      onLogin(data.user);
+      onLogin(data);
     } catch (err) {
       setError('Invalid username or password');
     } finally {
@@ -22,73 +27,107 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-900">
-      {/* Premium Background Gradients */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/30 rounded-full blur-[120px] mix-blend-screen animate-float" style={{ animationDelay: '0s' }}></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-violet-600/20 rounded-full blur-[120px] mix-blend-screen animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-[40%] left-[20%] w-[30%] h-[30%] bg-blue-500/20 rounded-full blur-[100px] mix-blend-screen animate-float" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="w-full max-w-[420px] relative z-10 px-6 animate-slide-up">
-        {/* Glassmorphism Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl rounded-3xl p-10 flex flex-col items-center">
-          
-          {/* Header */}
-          <div className="mb-10 text-center">
-            <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-indigo-500/30 transform hover:scale-105 transition-transform duration-300">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="min-h-screen w-full flex bg-slate-50 font-sans">
+      {/* Left Branding Panel (Hidden on mobile) */}
+      <div className="hidden lg:flex flex-col justify-center items-center w-1/2 bg-gradient-to-br from-blue-900 to-blue-800 p-12 relative overflow-hidden text-center">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+        
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-36 h-36 bg-white p-4 rounded-full shadow-2xl mb-8 flex items-center justify-center overflow-hidden">
+            {settings?.logoBase64 ? (
+              <img src={settings.logoBase64} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <svg className="w-16 h-16 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
+            )}
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-4 tracking-tight leading-tight whitespace-pre-line">
+            {settings?.websiteName || "Business Permit \n & Licensing Office"}
+          </h1>
+          <div className="w-16 h-1.5 bg-yellow-500 rounded-full my-4"></div>
+          <p className="text-blue-100 text-lg font-medium tracking-wide max-w-sm">
+            Official Queuing Management System
+          </p>
+        </div>
+      </div>
+
+      {/* Right Login Panel */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10">
+          
+          <div className="mb-8 lg:hidden flex flex-col items-center text-center">
+             <div className="w-24 h-24 bg-white p-3 rounded-full shadow-lg mb-4 flex items-center justify-center overflow-hidden border border-slate-100">
+              {settings?.logoBase64 ? (
+                <img src={settings.logoBase64} alt="Logo" className="w-full h-full object-contain" />
+              ) : (
+                <svg className="w-12 h-12 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              )}
             </div>
-            <h1 className="text-3xl font-extrabold text-white mb-2 tracking-tight">BPLO Queue</h1>
-            <p className="text-indigo-200 font-medium text-sm">Sign in to manage the queue</p>
+            <h2 className="text-2xl font-bold text-slate-900">{settings?.websiteName || "BPLO Queue"}</h2>
+            <p className="text-slate-500 text-sm mt-1">Sign in to your account</p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
+          <div className="hidden lg:block mb-10">
+            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome Back</h2>
+            <p className="text-slate-500 font-medium mt-2 text-sm">Please sign in to your official account to continue.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-sm font-medium text-center backdrop-blur-sm">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-semibold flex items-center gap-2">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 {error}
               </div>
             )}
             
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-indigo-300 group-focus-within:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Username</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Enter your username"
+                  value={username} 
+                  onChange={e => setUsername(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                  required
+                />
               </div>
-              <input 
-                type="text" 
-                placeholder="Username"
-                value={username} 
-                onChange={e => setUsername(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 focus:bg-white/10 transition-all shadow-inner"
-                required
-              />
             </div>
             
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-indigo-300 group-focus-within:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <input 
+                  type="password" 
+                  placeholder="Enter your password"
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium"
+                  required
+                />
               </div>
-              <input 
-                type="password" 
-                placeholder="Password"
-                value={password} 
-                onChange={e => setPassword(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 focus:bg-white/10 transition-all shadow-inner"
-                required
-              />
             </div>
             
             <button 
               type="submit" 
               disabled={isLoading}
-              className={`mt-4 w-full py-3.5 px-4 rounded-xl text-white font-bold text-lg tracking-wide shadow-lg shadow-indigo-600/30 transition-all ${isLoading ? 'bg-indigo-500/70 cursor-wait' : 'bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 hover:-translate-y-1 hover:shadow-indigo-500/40'}`}
+              className={`mt-4 w-full py-4 px-4 rounded-xl text-white font-bold text-base tracking-wide transition-all shadow-md ${isLoading ? 'bg-blue-400 cursor-wait' : 'bg-blue-700 hover:bg-blue-800 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'}`}
             >
               {isLoading ? 'Signing In...' : 'Sign In'}
             </button>

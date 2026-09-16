@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const BACKEND_URL = `http://${window.location.hostname}:3005`;
+const BACKEND_URL = `http://${window.location.hostname}:3001`;
 const API_URL = `${BACKEND_URL}/api`;
 export const socket = io(BACKEND_URL);
 
@@ -191,6 +191,22 @@ export const api = {
     });
     return res.json();
   },
+  trackTicket: async (number) => {
+    const res = await fetch(`${API_URL}/tickets/track/${number}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to track ticket');
+    }
+    return { data: await res.json() };
+  },
+  subscribeToPush: async (number, subscription) => {
+    const res = await fetch(`${API_URL}/tickets/track/${number}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription })
+    });
+    return res.json();
+  },
 
   // Settings
   getSettings: async () => {
@@ -204,6 +220,47 @@ export const api = {
       body: JSON.stringify(settingsData)
     });
     if (!res.ok) throw new Error('Failed to update settings');
+    return res.json();
+  },
+  resetData: async () => {
+    const res = await fetch(`${API_URL}/admin/reset-data`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() }
+    });
+    if (!res.ok) throw new Error('Failed to reset data');
+    return res.json();
+  },
+
+  // Priority Groups
+  getPriorityGroups: async () => {
+    const res = await fetch(`${API_URL}/priority-groups`);
+    if (!res.ok) throw new Error('Failed to fetch priority groups');
+    return res.json();
+  },
+  createPriorityGroup: async (data) => {
+    const res = await fetch(`${API_URL}/priority-groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to create priority group');
+    return res.json();
+  },
+  updatePriorityGroup: async (id, data) => {
+    const res = await fetch(`${API_URL}/priority-groups/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to update priority group');
+    return res.json();
+  },
+  deletePriorityGroup: async (id) => {
+    const res = await fetch(`${API_URL}/priority-groups/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() }
+    });
+    if (!res.ok) throw new Error('Failed to delete priority group');
     return res.json();
   }
 };

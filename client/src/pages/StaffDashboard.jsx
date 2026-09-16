@@ -11,8 +11,11 @@ export default function StaffDashboard({ user }) {
   const [queue, setQueue] = useState([]);
   const [currentServingList, setCurrentServingList] = useState([]);
   const [postponedTickets, setPostponedTickets] = useState([]);
+  const [priorityGroups, setPriorityGroups] = useState([]);
   const [showReturnsModal, setShowReturnsModal] = useState(false);
   const [popupMessage, setPopupMessage] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const lastCaterPrefixRef = useRef(undefined);
   
   const scrollContainerRef = useRef(null);
 
@@ -37,16 +40,18 @@ export default function StaffDashboard({ user }) {
 
   const fetchInitialData = async () => {
     try {
-      const [servicesData, queueData, servingData, postponedData] = await Promise.all([
+      const [servicesData, queueData, servingData, postponedData, priorityGroupsData] = await Promise.all([
         api.getServices(),
         api.getWaitingQueue(),
         api.getMyServing(user.id),
-        api.getPostponedTickets()
+        api.getPostponedTickets(),
+        api.getPriorityGroups()
       ]);
       setServices(servicesData);
       setQueue(queueData);
       setCurrentServingList(servingData);
       setPostponedTickets(postponedData);
+      setPriorityGroups(priorityGroupsData);
     } catch (err) {
       console.error(err);
     }
@@ -69,14 +74,27 @@ export default function StaffDashboard({ user }) {
     };
 
     const handleCaterConfigUpdated = (maxPrefix) => {
+      // Skip if the config hasn't actually changed
+      if (lastCaterPrefixRef.current === maxPrefix) return;
+      lastCaterPrefixRef.current = maxPrefix;
+
+      if (!maxPrefix) {
+        setToastMessage({
+          title: "Traffic Normalized",
+          message: "You are now serving all services again.",
+          type: 'success'
+        });
+        return;
+      }
+      
       let serviceName = "All Services";
       if (maxPrefix === 'NW') serviceName = "New Applications";
       if (maxPrefix === 'RNW') serviceName = "Renewals";
       if (maxPrefix === 'R') serviceName = "Retirements";
       
-      setPopupMessage({
-        title: "System Alert",
-        message: `High traffic detected. You are now prioritizing ${serviceName}.`,
+      setToastMessage({
+        title: "High Traffic Alert",
+        message: `Prioritizing ${serviceName}.`,
         type: 'info'
       });
     };
@@ -85,6 +103,7 @@ export default function StaffDashboard({ user }) {
     socket.on('ticketCreated', handleUpdate);
     socket.on('ticketDeleted', handleUpdate);
     socket.on('caterConfigUpdated', handleCaterConfigUpdated);
+    socket.on('priorityGroupsUpdated', handleUpdate);
 
     return () => {
       clearTimeout(debounceTimer);
@@ -92,6 +111,7 @@ export default function StaffDashboard({ user }) {
       socket.off('ticketCreated', handleUpdate);
       socket.off('ticketDeleted', handleUpdate);
       socket.off('caterConfigUpdated', handleCaterConfigUpdated);
+      socket.off('priorityGroupsUpdated', handleUpdate);
     };
   }, []);
 
@@ -162,14 +182,14 @@ export default function StaffDashboard({ user }) {
             {filteredQueue.map((ticket, index) => (
               <div 
                 key={ticket.id} 
-                className={`flex justify-between items-center p-2 bg-surface rounded-xl border ${themeColors.border} shrink-0 gap-2 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 animate-slide-up`}
+                className={`flex justify-between items-center p-2 bg-surface rounded-xl border ${themeColors.border} shrink-0 gap-2 shadow-sm animate-slide-up`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-black tracking-tight ${themeColors.text}`}>{ticket.number}</span>
+                <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                  <span className={`text-sm font-black tracking-tight ${themeColors.text} whitespace-nowrap`}>{ticket.number}</span>
                   {ticket.priorityType && ticket.priorityType !== 'REGULAR' && (
-                    <span title={`Priority: ${ticket.priorityType}`} className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[11px] px-2.5 py-1 rounded-md font-black tracking-widest shadow-md border border-orange-400 uppercase">
-                      {ticket.priorityType} Priority
+                    <span title={`Priority: ${ticket.priorityType}`} className="bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[10px] px-2 py-0.5 rounded-md font-extrabold tracking-wide shadow-sm border border-orange-400 uppercase whitespace-nowrap shrink-0">
+                      {priorityGroups.find(g => g.name === ticket.priorityType)?.shortLabel || ticket.priorityType}
                     </span>
                   )}
                 </div>
@@ -302,9 +322,9 @@ export default function StaffDashboard({ user }) {
         <h3 className="mb-2 shrink-0 text-xl font-extrabold text-text-main tracking-tight m-0">Waiting Queue</h3>
         
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 flex-1 min-h-0">
-          {renderQueueList('New Application', newAppQueue, { text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/20', bgFill: '#059669' })}
-          {renderQueueList('Renewal', renewalQueue, { text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20', bgFill: '#4f46e5' })}
-          {renderQueueList('Retirement', retirementQueue, { text: 'text-rose-700 dark:text-rose-400', border: 'border-rose-200 dark:border-rose-500/20', bgFill: '#e11d48' })}
+          {renderQueueList('New Application', newAppQueue, { text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/20', bgFill: '#059669', glow: 'glow-emerald' })}
+          {renderQueueList('Renewal', renewalQueue, { text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20', bgFill: '#4f46e5', glow: 'glow-indigo' })}
+          {renderQueueList('Retirement', retirementQueue, { text: 'text-rose-700 dark:text-rose-400', border: 'border-rose-200 dark:border-rose-500/20', bgFill: '#e11d48', glow: 'glow-rose' })}
         </div>
       </div>
 
@@ -349,29 +369,44 @@ export default function StaffDashboard({ user }) {
         </div>
       </ModalWrapper>
 
-      {/* Global Message Popup Window */}
-      <ModalWrapper isOpen={!!popupMessage} zIndex={9999} bg="rgba(15,23,42,0.6)">
-        {() => (
-          <div className={`bg-surface rounded-3xl w-[360px] p-8 text-center border border-border shadow-float animate-slide-up relative overflow-hidden`}>
-            
-            <div className={`absolute top-0 left-0 w-full h-2 bg-indigo-500`}></div>
-            
-            <div className={`w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl font-black bg-indigo-50 text-indigo-500 border border-indigo-100`}>
-              i
+      {/* Auto-Balance Toast Notification */}
+      {toastMessage && (
+        <div
+          className="fixed top-6 right-6 z-[9999] animate-slide-up"
+          onAnimationEnd={() => {
+            // Auto-dismiss after 4 seconds
+            const timer = setTimeout(() => setToastMessage(null), 4000);
+            return () => clearTimeout(timer);
+          }}
+        >
+          <div 
+            className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border backdrop-blur-sm cursor-pointer transition-all hover:scale-[1.02] ${
+              toastMessage.type === 'success' 
+                ? 'bg-emerald-50/95 dark:bg-emerald-950/95 border-emerald-200 dark:border-emerald-800' 
+                : 'bg-amber-50/95 dark:bg-amber-950/95 border-amber-200 dark:border-amber-800'
+            }`}
+            onClick={() => setToastMessage(null)}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              toastMessage.type === 'success' 
+                ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600' 
+                : 'bg-amber-100 dark:bg-amber-900 text-amber-600'
+            }`}>
+              {toastMessage.type === 'success' ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              )}
             </div>
-            
-            <h3 className="m-0 mb-3 text-text-main font-extrabold text-xl tracking-tight">{popupMessage.title}</h3>
-            <p className="m-0 mb-8 text-text-muted text-sm font-medium leading-relaxed">{popupMessage.message}</p>
-            
-            <button 
-              onClick={() => setPopupMessage(null)} 
-              className="w-full p-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer text-base shadow-md shadow-indigo-600/30"
-            >
-              Acknowledge
-            </button>
+            <div>
+              <p className={`m-0 text-xs font-extrabold uppercase tracking-wider ${
+                toastMessage.type === 'success' ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'
+              }`}>{toastMessage.title}</p>
+              <p className="m-0 text-sm font-medium text-text-main">{toastMessage.message}</p>
+            </div>
           </div>
-        )}
-      </ModalWrapper>
+        </div>
+      )}
 
     </div>
   );

@@ -11,5 +11,7 @@ router.post('/', verifyToken, ticketController.createTicket);
 router.delete('/:id', verifyToken, ticketController.deleteTicket);
 router.put('/:id/call', verifyToken, ticketController.callTicket);
 router.put('/:id/status', verifyToken, ticketController.updateTicketStatus);
+router.get('/track/:number', ticketController.trackTicket);
+router.post('/track/:number/subscribe', ticketController.subscribeToPush);
 
 module.exports = router;

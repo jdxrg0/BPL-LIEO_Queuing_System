@@ -16,7 +16,12 @@ export default function EditUserModal({ isOpen, user, originalUser, onClose, onS
 
   useEffect(() => {
     if (isOpen && user) {
-      setEditingUser({ ...user, currentPassword: '' });
+      let wNum = 1;
+      if (user.counter && user.counter.name) {
+        const parsed = parseInt(user.counter.name.replace('Window ', ''));
+        if (!isNaN(parsed)) wNum = parsed;
+      }
+      setEditingUser({ ...user, currentPassword: '', windowNumber: wNum });
     }
   }, [isOpen, user]);
 

@@ -7,6 +7,7 @@ export default function TVDisplay() {
   const [settings, setSettings] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [liveWaitTimes, setLiveWaitTimes] = useState({});
+  const [priorityGroups, setPriorityGroups] = useState([]);
 
   // Parse Multi-Monitor URL Parameters
   const searchParams = new URLSearchParams(window.location.search);
@@ -67,7 +68,8 @@ export default function TVDisplay() {
   useEffect(() => {
     Promise.all([
       fetchRecent(),
-      api.getSettings().then(setSettings)
+      api.getSettings().then(setSettings),
+      api.getPriorityGroups().then(setPriorityGroups)
     ])
     .catch(console.error)
     .finally(() => setIsLoading(false));
@@ -89,11 +91,15 @@ export default function TVDisplay() {
     });
 
     socket.on('settingsUpdated', setSettings);
+    socket.on('priorityGroupsUpdated', () => {
+      api.getPriorityGroups().then(setPriorityGroups).catch(console.error);
+    });
 
     return () => {
       socket.off('ticketCalled');
       socket.off('queueUpdated');
       socket.off('settingsUpdated');
+      socket.off('priorityGroupsUpdated');
     };
   }, [monitorIdx, isStarted, totalMonitors]);
 
@@ -172,7 +178,7 @@ export default function TVDisplay() {
                   {t.priorityType && t.priorityType !== 'REGULAR' && (
                     <div className="absolute top-0 right-0 bg-red-600 text-white font-black px-[1cqw] py-[0.2vh] rounded-bl-[1vh] drop-shadow-md z-10 uppercase"
                          style={{ fontSize: `min(2.5cqw, ${maxFontVh * 0.3}vh)` }}>
-                      {t.priorityType} Priority
+                      {priorityGroups.find(g => g.name === t.priorityType)?.label || t.priorityType} Priority
                     </div>
                   )}
 

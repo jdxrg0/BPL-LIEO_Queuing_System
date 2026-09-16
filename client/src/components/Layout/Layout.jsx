@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Monitor, Tablet, User, Settings, LogOut, LayoutDashboard, Shield, Landmark, Menu, Plus, FilePlus, RefreshCw, Archive, Check, ChevronDown } from 'lucide-react';
+import { Monitor, Tablet, User, Settings, LogOut, LayoutDashboard, Shield, Landmark, Menu, Plus, FilePlus, RefreshCw, Archive, Check, ChevronDown, X } from 'lucide-react';
 import HoldButton from '../Buttons/HoldButton';
 import ThemeToggle from '../Theme/ThemeToggle';
 import { api, socket } from '../../api';
@@ -11,6 +11,7 @@ export default function Layout({ user, onLogout }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved === null) return true; // Default to collapsed
     return saved === 'true';
   });
 
@@ -39,14 +40,25 @@ export default function Layout({ user, onLogout }) {
   useEffect(() => {
     localStorage.setItem('lastSettingsTab', settingsTab);
   }, [settingsTab]);
-  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '' });
+  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '', autoBalanceThreshold: 15 });
   const logoInputRef = useRef(null);
   
   // Account Settings
   const [accountForm, setAccountForm] = useState({ name: user?.name || '', profilePictureBase64: user?.profilePictureBase64 || '' });
   const [passwordChange, setPasswordChange] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [resetFeedbackModal, setResetFeedbackModal] = useState({ show: false, title: '', message: '', type: 'success' });
   const profilePicInputRef = useRef(null);
+
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [pendingServiceId, setPendingServiceId] = useState(null);
+  const [priorityGroups, setPriorityGroups] = useState([]);
+  const [newGroupForm, setNewGroupForm] = useState({ name: '', label: '', shortLabel: '', weight: 1, slaThreshold: '' });
+  const [showAddGroupForm, setShowAddGroupForm] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editGroupForm, setEditGroupForm] = useState({ label: '', shortLabel: '', weight: 1, slaThreshold: '', isActive: true });
 
   useEffect(() => {
     if (user) {
@@ -75,18 +87,41 @@ export default function Layout({ user, onLogout }) {
       api.getServices().then(setServices),
       api.getSettings().then(s => {
         setSettings(s);
-        setSettingsForm({ websiteName: s.websiteName || '', logoBase64: s.logoBase64 || '' });
-      })
+        setSettingsForm({ 
+          websiteName: s.websiteName || '', 
+          logoBase64: s.logoBase64 || '', 
+          autoBalanceThreshold: s.autoBalanceThreshold || 15,
+          zipperRatio: s.zipperRatio || 3,
+          agingRate: s.agingRate || 0.1,
+          skipLimit: s.skipLimit || 5
+        });
+      }),
+      api.getPriorityGroups().then(setPriorityGroups)
     ])
     .catch(console.error)
     .finally(() => setIsLoading(false));
 
     socket.on('settingsUpdated', (s) => {
       setSettings(s);
-      setSettingsForm(prev => ({ ...prev, websiteName: s.websiteName || '', logoBase64: s.logoBase64 || '' }));
+      setSettingsForm(prev => ({ 
+        ...prev, 
+        websiteName: s.websiteName || '', 
+        logoBase64: s.logoBase64 || '', 
+        autoBalanceThreshold: s.autoBalanceThreshold || 15,
+        zipperRatio: s.zipperRatio || 3,
+        agingRate: s.agingRate || 0.1,
+        skipLimit: s.skipLimit || 5
+      }));
     });
 
-    return () => socket.off('settingsUpdated');
+    socket.on('priorityGroupsUpdated', () => {
+      api.getPriorityGroups().then(setPriorityGroups).catch(console.error);
+    });
+
+    return () => {
+      socket.off('settingsUpdated');
+      socket.off('priorityGroupsUpdated');
+    };
   }, []);
 
   useEffect(() => {
@@ -135,9 +170,15 @@ export default function Layout({ user, onLogout }) {
     setIsWaitingForFullscreen(true);
   };
 
-  const handleGenerateTicket = async (serviceId) => {
+  const handleGenerateTicketClick = (serviceId) => {
+    setPendingServiceId(serviceId);
+    setShowPriorityModal(true);
+  };
+
+  const executeGenerateTicket = async (priorityType = 'REGULAR') => {
     try {
-      const ticket = await api.generateTicket(serviceId, user.id);
+      setShowPriorityModal(false);
+      const ticket = await api.generateTicket(pendingServiceId, user.id, priorityType);
       setLatestTicket(ticket);
     } catch (err) {
       console.error(err);
@@ -161,13 +202,7 @@ export default function Layout({ user, onLogout }) {
     return { bg: 'var(--color-text-muted)', main: '#ffffff' }; 
   };
 
-  const allowedServices = services.filter(s => {
-    const lower = s.name.toLowerCase();
-    if (lower.includes('renew') && user?.caterRenewal) return true;
-    if (lower.includes('new') && !lower.includes('renew') && user?.caterNew) return true;
-    if (lower.includes('retire') && user?.caterRetirement) return true;
-    return false;
-  });
+  const allowedServices = services;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -224,11 +259,8 @@ export default function Layout({ user, onLogout }) {
               <Landmark size={isSidebarCollapsed ? 20 : 28} strokeWidth={2.5} className="transition-all duration-300" />
             )}
           </div>
-          <div className={`
-            transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
-            ${isSidebarCollapsed ? 'opacity-0 max-h-0 scale-90 -translate-y-2' : 'opacity-100 max-h-[100px] scale-100 translate-y-0'}
-          `}>
-            <h2 className="text-text-main m-0 text-lg font-extrabold tracking-tight leading-tight whitespace-normal break-words max-w-[220px]">
+          <div className="transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden flex flex-col items-center">
+            <h2 className={`text-text-main m-0 font-extrabold tracking-tight leading-tight whitespace-normal break-words text-center transition-all duration-300 ${isSidebarCollapsed ? 'text-[11px] max-w-[70px] mt-1' : 'text-lg max-w-[220px]'}`}>
               {(() => {
                 const name = settings?.websiteName || 'BPLO System';
                 const parts = name.split(' ');
@@ -245,9 +277,9 @@ export default function Layout({ user, onLogout }) {
 
         <div className="mb-8 relative z-10">
           <div className={`
-            text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3 pl-4
+            font-bold text-text-muted uppercase mb-3
             transition-all duration-300 overflow-hidden whitespace-nowrap
-            ${isSidebarCollapsed ? 'opacity-0 max-h-0' : 'opacity-100 max-h-[20px]'}
+            ${isSidebarCollapsed ? 'text-center text-[7px] tracking-wider' : 'pl-4 text-[10px] tracking-widest'}
           `}>
             Navigation
           </div>
@@ -316,17 +348,22 @@ export default function Layout({ user, onLogout }) {
               <Menu size={24} />
             </button>
 
-            {location.pathname === '/staff' && allowedServices.length > 0 && (
+            {location.pathname === '/staff' && user?.role !== 'STAFF' && allowedServices.length > 0 && (
               <div className="hidden md:flex items-center gap-3 border-l border-border pl-6">
                 {allowedServices.map(s => (
                   <div key={s.id} className="hover:-translate-y-0.5 transition-transform">
-                    <HoldButton 
-                      onClick={() => handleGenerateTicket(s.id)}
-                      icon={getServiceIcon(s.name)}
-                      colorMap={getServiceColor(s.name)}
-                      tooltip={`Hold to generate ${s.name} ticket`}
-                      holdTime={500}
-                    />
+                    <button 
+                      onClick={() => handleGenerateTicketClick(s.id)}
+                      title={`Generate ${s.name} ticket`}
+                      className="flex items-center justify-center rounded-full cursor-pointer border-none transition-transform hover:scale-110 active:scale-95"
+                      style={{ 
+                        width: 28, height: 28, 
+                        background: getServiceColor(s.name).bg, 
+                        color: getServiceColor(s.name).main 
+                      }}
+                    >
+                      {getServiceIcon(s.name)}
+                    </button>
                   </div>
                 ))}
                 
@@ -367,14 +404,6 @@ export default function Layout({ user, onLogout }) {
                 >
                   <Monitor size={20} />
                 </button>
-                <Link 
-                  to="/kiosk" 
-                  target="_blank"
-                  title="Open Kiosk"
-                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all hover:text-indigo-600 hover:bg-indigo-50"
-                >
-                  <Tablet size={20} />
-                </Link>
               </div>
             )}
             
@@ -548,6 +577,18 @@ export default function Layout({ user, onLogout }) {
                     >
                       General & Appearance
                     </button>
+                    <button 
+                      onClick={() => setSettingsTab('priority')}
+                      className={`px-4 py-3 border-none rounded-xl text-left font-bold cursor-pointer transition-all ${settingsTab === 'priority' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-transparent text-text-main hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    >
+                      Priority Groups
+                    </button>
+                    <button 
+                      onClick={() => setSettingsTab('danger')}
+                      className={`px-4 py-3 border-none rounded-xl text-left font-bold cursor-pointer transition-all mt-auto ${settingsTab === 'danger' ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20' : 'bg-transparent text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30'}`}
+                    >
+                      Danger Zone
+                    </button>
                   </>
                 )}
               </nav>
@@ -611,11 +652,54 @@ export default function Layout({ user, onLogout }) {
                     </div>
                   </div>
 
+                  <div className="mb-8">
+                    <label className="block mb-2 font-bold text-sm text-text-main uppercase tracking-wider">Auto-Balance Panic Threshold (Minutes)</label>
+                    <p className="text-text-muted text-sm font-medium mb-3 mt-0 leading-relaxed">If the estimated wait time exceeds this threshold, the system automatically intervenes and reallocates all windows to the bottleneck.</p>
+                    <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="60" 
+                        step="5"
+                        value={settingsForm.autoBalanceThreshold}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, autoBalanceThreshold: parseInt(e.target.value) }))}
+                        className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <span className="font-extrabold text-indigo-600 dark:text-indigo-400 w-12 text-right text-lg">{settingsForm.autoBalanceThreshold}m</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block mb-2 font-bold text-sm text-text-main uppercase tracking-wider">Advanced Sorting Engine</label>
+                    <p className="text-text-muted text-sm font-medium mb-3 mt-0 leading-relaxed">Configure the fine-grained parameters for the Smart Queue algorithm to balance fairness and priority.</p>
+                    <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <div>
+                        <label className="block text-xs font-bold text-text-muted mb-1">Zipper Ratio</label>
+                        <input type="number" min="1" max="10" value={settingsForm.zipperRatio} onChange={e => setSettingsForm(prev => ({ ...prev, zipperRatio: parseInt(e.target.value) || 1 }))} className="w-full p-2 rounded-lg border border-border bg-surface text-text-main" title="Force 1 regular ticket after this many consecutive priority tickets" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-text-muted mb-1">Aging Rate</label>
+                        <input type="number" min="0" max="1" step="0.1" value={settingsForm.agingRate} onChange={e => setSettingsForm(prev => ({ ...prev, agingRate: parseFloat(e.target.value) || 0 }))} className="w-full p-2 rounded-lg border border-border bg-surface text-text-main" title="Priority points gained per minute of waiting" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-bold text-text-muted mb-1">Consecutive Skip Limit (Stoplight)</label>
+                        <input type="number" min="1" max="20" value={settingsForm.skipLimit} onChange={e => setSettingsForm(prev => ({ ...prev, skipLimit: parseInt(e.target.value) || 1 }))} className="w-full p-2 rounded-lg border border-border bg-surface text-text-main" title="Max times a ticket can be skipped by VIPs before locking it to the front" />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="mt-auto flex justify-end gap-3 pt-6 border-t border-slate-100">
                     <button 
                       onClick={() => {
                         setShowSettingsModal(false);
-                        setSettingsForm({ websiteName: settings?.websiteName || '', logoBase64: settings?.logoBase64 || '' });
+                        setSettingsForm({ 
+                          websiteName: settings?.websiteName || '', 
+                          logoBase64: settings?.logoBase64 || '', 
+                          autoBalanceThreshold: settings?.autoBalanceThreshold || 15,
+                          zipperRatio: settings?.zipperRatio || 3,
+                          agingRate: settings?.agingRate || 0.1,
+                          skipLimit: settings?.skipLimit || 5
+                        });
                       }}
                       className="px-6 py-3 bg-transparent text-text-muted border-none rounded-xl cursor-pointer font-bold hover:bg-slate-100 dark:bg-slate-800 transition-colors"
                     >
@@ -635,6 +719,174 @@ export default function Layout({ user, onLogout }) {
                       Save Changes
                     </button>
                   </div>
+                </div>
+              )}
+
+              {settingsTab === 'priority' && (
+                <div className="animate-slide-up h-full flex flex-col">
+                  <h3 className="m-0 mb-2 text-2xl font-extrabold text-text-main tracking-tight">Priority Groups</h3>
+                  <p className="text-text-muted text-sm font-medium mb-6 mt-0">Manage the priority categories available when generating tickets. Groups with higher weight get faster service in the queue.</p>
+                  
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-3 mb-4">
+                    {priorityGroups.map(group => (
+                      <div key={group.id} className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                        {editingGroupId === group.id ? (
+                          <div className="flex flex-col gap-3">
+                            <div className="grid grid-cols-3 gap-3">
+                              <input
+                                type="text" placeholder="Label"
+                                value={editGroupForm.label}
+                                onChange={e => setEditGroupForm(prev => ({ ...prev, label: e.target.value }))}
+                                className="p-2 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                              />
+                              <input
+                                type="text" placeholder="Short Label"
+                                value={editGroupForm.shortLabel}
+                                onChange={e => setEditGroupForm(prev => ({ ...prev, shortLabel: e.target.value.toUpperCase() }))}
+                                className="p-2 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                              />
+                              <input
+                                type="number" min="1" placeholder="Weight"
+                                value={editGroupForm.weight}
+                                onChange={e => setEditGroupForm(prev => ({ ...prev, weight: parseInt(e.target.value) || 1 }))}
+                                className="p-2 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                              />
+                              <div className="col-span-3">
+                                <label className="block text-xs font-bold text-text-muted mb-1 mt-2">Custom Panic Threshold (Mins)</label>
+                                <input
+                                  type="number" min="1" placeholder="Leave empty for global default"
+                                  value={editGroupForm.slaThreshold}
+                                  onChange={e => setEditGroupForm(prev => ({ ...prev, slaThreshold: e.target.value ? parseInt(e.target.value) : '' }))}
+                                  className="w-full p-2 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-end mt-2">
+                              <button
+                                onClick={() => setEditingGroupId(null)}
+                                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border text-text-muted hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.updatePriorityGroup(group.id, editGroupForm);
+                                    setEditingGroupId(null);
+                                  } catch (e) { console.error(e); }
+                                }}
+                                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-text-main text-sm">{group.label}</span>
+                                <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">{group.name}</span>
+                                {group.shortLabel && <span className="text-text-muted text-xs font-semibold">({group.shortLabel})</span>}
+                              </div>
+                              <span className="text-text-muted text-xs font-medium">Weight: {group.weight}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingGroupId(group.id);
+                                setEditGroupForm({ 
+                                  label: group.label, 
+                                  shortLabel: group.shortLabel || '', 
+                                  weight: group.weight, 
+                                  slaThreshold: group.slaThreshold || '',
+                                  isActive: group.isActive 
+                                });
+                              }}
+                              className="w-8 h-8 rounded-lg bg-transparent border border-indigo-200 text-indigo-500 flex items-center justify-center cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors text-sm font-bold shrink-0"
+                              title="Edit group"
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await api.deletePriorityGroup(group.id);
+                                } catch (e) { console.error(e); }
+                              }}
+                              className="w-8 h-8 rounded-lg bg-transparent border border-red-200 text-red-500 flex items-center justify-center cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors text-lg pb-1 shrink-0"
+                              title="Delete group"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {!showAddGroupForm ? (
+                    <button
+                      onClick={() => setShowAddGroupForm(true)}
+                      className="w-full py-3 border-2 border-dashed border-indigo-200 dark:border-indigo-800 rounded-xl text-indigo-600 dark:text-indigo-400 font-bold cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors bg-transparent"
+                    >
+                      + Add Priority Group
+                    </button>
+                  ) : (
+                    <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 flex flex-col gap-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        <input
+                          type="text" placeholder="Label (e.g. Solo Parent)"
+                          value={newGroupForm.label}
+                          onChange={e => setNewGroupForm(prev => ({ ...prev, label: e.target.value, name: e.target.value.toUpperCase().replace(/\s+/g, '_') }))}
+                          className="p-2.5 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                        />
+                        <input
+                          type="text" placeholder="Short (e.g. SP)"
+                          value={newGroupForm.shortLabel}
+                          onChange={e => setNewGroupForm(prev => ({ ...prev, shortLabel: e.target.value.toUpperCase() }))}
+                          className="p-2.5 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                        />
+                        <input
+                          type="number" min="1" placeholder="Weight"
+                          value={newGroupForm.weight}
+                          onChange={e => setNewGroupForm(prev => ({ ...prev, weight: parseInt(e.target.value) || 1 }))}
+                          className="p-2.5 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                          title="Priority Weight (higher = faster service)"
+                        />
+                        <div className="col-span-3 mt-1">
+                          <input
+                            type="number" min="1" placeholder="Custom Panic Threshold (Mins) - Optional"
+                            value={newGroupForm.slaThreshold}
+                            onChange={e => setNewGroupForm(prev => ({ ...prev, slaThreshold: e.target.value ? parseInt(e.target.value) : '' }))}
+                            className="w-full p-2.5 rounded-lg border border-border bg-surface text-text-main text-sm outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 mt-2">
+                        <button
+                          onClick={async () => {
+                            if (!newGroupForm.label.trim()) return;
+                            try {
+                              const dataToSubmit = { ...newGroupForm };
+                              if (dataToSubmit.slaThreshold === '') dataToSubmit.slaThreshold = null;
+                              await api.createPriorityGroup(dataToSubmit);
+                              setNewGroupForm({ name: '', label: '', shortLabel: '', weight: 1, slaThreshold: '' });
+                              setShowAddGroupForm(false);
+                            } catch (e) { console.error(e); }
+                          }}
+                          className="flex-1 py-2.5 bg-indigo-600 text-white border-none rounded-lg cursor-pointer font-bold hover:bg-indigo-700 transition-colors"
+                        >
+                          Add
+                        </button>
+                        <button
+                          onClick={() => { setShowAddGroupForm(false); setNewGroupForm({ name: '', label: '', shortLabel: '', weight: 1, slaThreshold: '' }); }}
+                          className="px-4 py-2.5 bg-transparent text-text-muted border border-border rounded-lg cursor-pointer font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -717,6 +969,27 @@ export default function Layout({ user, onLogout }) {
                   </div>
                 </div>
               )}
+              {settingsTab === 'danger' && (
+                <div className="animate-slide-up h-full flex flex-col">
+                  <h3 className="m-0 mb-8 text-2xl font-extrabold text-danger tracking-tight">Danger Zone</h3>
+                  
+                  <div className="mb-8 p-6 border border-rose-200 bg-rose-50 dark:bg-rose-900/20 dark:border-rose-800 rounded-2xl">
+                    <h4 className="text-rose-700 dark:text-rose-400 font-bold text-lg mb-2 m-0">Factory Reset / Clear All Data</h4>
+                    <p className="text-rose-600 dark:text-rose-300 text-sm font-medium mb-6 mt-0">
+                      This will permanently delete all tickets and reset all queue statistics to zero. This action cannot be undone. User accounts and settings will remain intact.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        setResetConfirmText('');
+                        setShowResetConfirmModal(true);
+                      }}
+                      className="px-6 py-3 bg-rose-600 text-white border-none rounded-xl cursor-pointer font-bold hover:bg-rose-700 transition-colors shadow-sm"
+                    >
+                      Reset All Data
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
         </div>
       </ModalWrapper>
@@ -760,6 +1033,101 @@ export default function Layout({ user, onLogout }) {
           </div>
         </div>
       </ModalWrapper>
+
+      {/* Priority Modal */}
+      {showPriorityModal && (
+        <div className="modal-overlay fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-4">
+          <div className="modal-card bg-surface rounded-xl w-full max-w-[500px] flex flex-col overflow-hidden shadow-2xl p-8 text-center animate-slide-up">
+            <h2 className="mb-6 text-text-main font-bold text-2xl">Select Priority Group</h2>
+            
+            <div className="flex flex-col gap-4">
+              {priorityGroups.filter(g => g.isActive).map(group => (
+                <button 
+                  key={group.id} 
+                  onClick={() => executeGenerateTicket(group.name)} 
+                  className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover shadow-sm"
+                >
+                  {group.label}
+                </button>
+              ))}
+              
+              <div className="my-2 border-t border-border"></div>
+              
+              <button onClick={() => executeGenerateTicket('REGULAR')} className="btn bg-surface border-2 border-border text-text-main p-4 text-lg rounded-lg font-semibold hover:bg-bg-color shadow-sm">None / Regular</button>
+            </div>
+            
+            <button onClick={() => setShowPriorityModal(false)} className="btn mt-6 bg-transparent text-text-muted border-none cursor-pointer hover:text-text-main text-base font-medium">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirmModal && (
+        <div className="modal-overlay fixed inset-0 bg-black/70 flex items-center justify-center z-[1100] p-4">
+          <div className="modal-card bg-surface rounded-3xl w-full max-w-[450px] shadow-float border border-border p-8 flex flex-col animate-slide-up">
+            <h3 className="m-0 mb-3 text-2xl font-extrabold text-danger tracking-tight">Confirm Data Reset</h3>
+            <p className="text-text-muted text-sm font-medium mb-6 mt-0 leading-relaxed">
+              This action is irreversible and will permanently delete all tickets. To confirm, please type <strong>CONFIRM</strong> below.
+            </p>
+            <input 
+              type="text" 
+              placeholder="CONFIRM"
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              className="w-full p-4 rounded-xl border border-border bg-surface text-text-main text-base outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all font-bold tracking-widest text-center uppercase mb-6"
+            />
+            <div className="flex gap-3 mt-auto">
+              <button 
+                onClick={() => setShowResetConfirmModal(false)}
+                className="flex-1 p-3 bg-slate-100 dark:bg-slate-800 text-text-muted font-bold border-none rounded-xl cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if (resetConfirmText !== 'CONFIRM') {
+                    setResetFeedbackModal({ show: true, title: 'Error', message: 'You must type CONFIRM to proceed.', type: 'error' });
+                    return;
+                  }
+                  try {
+                    await api.resetData();
+                    setShowResetConfirmModal(false);
+                    setShowSettingsModal(false);
+                    setResetFeedbackModal({ show: true, title: 'Success', message: 'All data has been successfully reset.', type: 'success' });
+                  } catch (err) {
+                    setResetFeedbackModal({ show: true, title: 'Error', message: 'Failed to reset data.', type: 'error' });
+                  }
+                }}
+                disabled={resetConfirmText !== 'CONFIRM'}
+                className={`flex-1 p-3 font-bold border-none rounded-xl cursor-pointer transition-all ${resetConfirmText === 'CONFIRM' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30 hover:bg-rose-700 hover:-translate-y-0.5' : 'bg-rose-100 text-rose-400 cursor-not-allowed'}`}
+              >
+                Permanently Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Feedback Modal */}
+      {resetFeedbackModal.show && (
+        <div className="modal-overlay fixed inset-0 bg-black/70 flex items-center justify-center z-[1200] p-4">
+          <div className="modal-card bg-surface rounded-3xl w-full max-w-[400px] shadow-float p-8 flex flex-col items-center text-center animate-slide-up border border-border">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${resetFeedbackModal.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+              {resetFeedbackModal.type === 'success' ? <Check size={32} strokeWidth={3} /> : <X size={32} strokeWidth={3} />}
+            </div>
+            <h3 className="m-0 mb-3 text-2xl font-extrabold text-text-main tracking-tight">{resetFeedbackModal.title}</h3>
+            <p className="text-text-muted text-sm font-medium mb-8 mt-0 leading-relaxed max-w-[280px]">
+              {resetFeedbackModal.message}
+            </p>
+            <button 
+              onClick={() => setResetFeedbackModal({ show: false, title: '', message: '', type: 'success' })}
+              className={`w-full p-4 font-bold border-none rounded-xl cursor-pointer transition-all ${resetFeedbackModal.type === 'success' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700' : 'bg-slate-100 text-text-main hover:bg-slate-200'}`}
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

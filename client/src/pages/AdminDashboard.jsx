@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { api } from '../api';
+import { api, socket } from '../api';
 import { User, Printer, Settings, Users, ArrowUpRight, TrendingUp, RefreshCw, X, UserPlus, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -81,7 +81,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    
+    const handleUpdate = () => fetchData();
+    socket.on('queueUpdated', handleUpdate);
+    socket.on('ticketCreated', handleUpdate);
+
+    return () => {
+      clearInterval(interval);
+      socket.off('queueUpdated', handleUpdate);
+      socket.off('ticketCreated', handleUpdate);
+    };
   }, []);
 
   const handlePrint = () => {
@@ -97,24 +106,24 @@ export default function AdminDashboard() {
   const renderChart = useMemo(() => {
     if (!stats?.trend) return null;
     return (
-      <div className="bg-surface rounded-3xl p-8 mb-8 shadow-soft border border-border flex flex-col transition-all hover:shadow-md animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-surface rounded-3xl p-5 mb-6 shadow-soft border border-border flex flex-col transition-all hover:shadow-md animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
-            <h2 className="m-0 text-2xl font-extrabold text-text-main tracking-tight">Tickets Issued</h2>
-            <p className="text-text-muted mt-1 text-sm font-medium">Daily volume of new tickets entering the queue</p>
+            <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Tickets Issued</h2>
+            <p className="text-text-muted mt-0.5 text-xs font-medium">Daily volume of new tickets</p>
           </div>
-          <div className="flex gap-4 items-center bg-bg-color p-2 rounded-2xl border border-slate-100">
-            <div className="flex items-center gap-2 pl-2">
-              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">From:</label>
-              <input type="date" value={trendStart} onChange={(e) => setTrendStart(e.target.value)} className="p-2 rounded-xl border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-sm shadow-sm" />
+          <div className="flex gap-3 items-center bg-bg-color p-1.5 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-1.5 pl-1.5">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">From:</label>
+              <input type="date" value={trendStart} onChange={(e) => setTrendStart(e.target.value)} className="p-1 px-2 rounded-lg border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-xs shadow-sm" />
             </div>
-            <div className="flex items-center gap-2 pr-2">
-              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">To:</label>
-              <input type="date" value={trendEnd} onChange={(e) => setTrendEnd(e.target.value)} className="p-2 rounded-xl border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-sm shadow-sm" />
+            <div className="flex items-center gap-1.5 pr-1.5">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">To:</label>
+              <input type="date" value={trendEnd} onChange={(e) => setTrendEnd(e.target.value)} className="p-1 px-2 rounded-lg border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-xs shadow-sm" />
             </div>
           </div>
         </div>
-        <div className="h-80 w-full">
+        <div className="h-64 w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={stats.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
@@ -149,70 +158,70 @@ export default function AdminDashboard() {
     if (!stats?.employees) return null;
     return (
       <div className="bg-surface rounded-3xl overflow-hidden shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <div className="p-8 border-b border-border bg-bg-color/50 flex justify-between items-center">
-          <h2 className="m-0 text-2xl font-extrabold text-text-main tracking-tight">Employee Performance</h2>
-          <span className="text-sm font-semibold text-text-muted bg-surface px-3 py-1 rounded-xl shadow-sm border border-border">{stats.employees.length} Users</span>
+        <div className="p-4 px-5 border-b border-border bg-bg-color/50 flex justify-between items-center">
+          <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Employee Performance</h2>
+          <span className="text-xs font-semibold text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border">{stats.employees.length} Users</span>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-surface text-text-muted text-xs uppercase tracking-wider font-extrabold">
-                <th className="p-5 px-8">Employee Details</th>
-                <th className="p-5 px-6 text-center">Total Served</th>
-                <th className="p-5 px-6 text-center">New Apps</th>
-                <th className="p-5 px-6 text-center">Renewals</th>
-                <th className="p-5 px-6 text-center">Retirements</th>
-                <th className="p-5 px-8 text-right">Actions</th>
+              <tr className="bg-surface text-text-muted text-[10px] uppercase tracking-wider font-extrabold">
+                <th className="p-3 px-4">Employee Details</th>
+                <th className="p-3 px-4 text-center">Total</th>
+                <th className="p-3 px-4 text-center">NW</th>
+                <th className="p-3 px-4 text-center">RNW</th>
+                <th className="p-3 px-4 text-center">R</th>
+                <th className="p-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {stats.employees.map((emp, i) => {
                 return (
                   <tr key={emp.id} className="border-t border-border hover:bg-bg-color/80 transition-colors group">
-                    <td className="p-4 px-8">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-black text-lg shadow-sm border border-indigo-50">
+                    <td className="p-2 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-black text-sm shadow-sm border border-indigo-50">
                           {emp.profilePictureBase64 ? (
-                            <img src={emp.profilePictureBase64} alt={emp.name} className="w-full h-full rounded-2xl object-cover" />
+                            <img src={emp.profilePictureBase64} alt={emp.name} className="w-full h-full rounded-xl object-cover" />
                           ) : (
                             emp.name.charAt(0)
                           )}
                         </div>
                         <div>
-                          <div className="font-extrabold text-text-main text-base group-hover:text-indigo-600 transition-colors">
+                          <div className="font-extrabold text-text-main text-sm group-hover:text-indigo-600 transition-colors">
                             {emp.name}
                           </div>
-                          <div className="text-xs font-semibold text-text-muted mt-1 flex gap-2 items-center">
-                              {emp.counter && <span className="text-[10px] bg-slate-100 text-text-muted px-2 py-0.5 rounded border border-slate-200">Window {emp.counter.name ? emp.counter.name.replace('Window ', '') : ''}</span>}
+                          <div className="text-[10px] font-semibold text-text-muted mt-0.5 flex gap-1.5 items-center">
+                              {emp.counter && <span className="bg-slate-100 text-text-muted px-1.5 py-0.5 rounded border border-slate-200">Window {emp.counter.name ? emp.counter.name.replace('Window ', '') : ''}</span>}
                           </div>
-                          <div className="flex gap-2 items-center mt-2">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                          <div className="flex gap-1.5 items-center mt-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
                               emp.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 
                               emp.role === 'RECEPTIONIST' ? 'bg-emerald-100 text-emerald-700' : 
                               'bg-slate-100 text-text-muted'
                             }`}>
                               {emp.role}
                             </span>
-                            <span className="text-xs text-text-muted font-semibold mx-1">•</span>
-                            <div className="flex gap-1.5">
-                              {emp.caterNew && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-extrabold shadow-sm">NW</span>}
-                              {emp.caterRenewal && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-md text-[10px] font-extrabold shadow-sm">RNW</span>}
-                              {emp.caterRetirement && <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 rounded-md text-[10px] font-extrabold shadow-sm">R</span>}
-                              {!emp.caterNew && !emp.caterRenewal && !emp.caterRetirement && <span className="text-text-muted text-[10px] font-bold">None</span>}
+                            <span className="text-[10px] text-text-muted font-semibold mx-0.5">•</span>
+                            <div className="flex gap-1">
+                              {emp.caterNew && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[9px] font-extrabold shadow-sm">NW</span>}
+                              {emp.caterRenewal && <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-extrabold shadow-sm">RNW</span>}
+                              {emp.caterRetirement && <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 rounded text-[9px] font-extrabold shadow-sm">R</span>}
+                              {!emp.caterNew && !emp.caterRenewal && !emp.caterRetirement && <span className="text-text-muted text-[9px] font-bold">None</span>}
                             </div>
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 px-6 text-center font-black text-indigo-600 text-lg">{emp.servedTotalYear}</td>
-                    <td className="p-4 px-6 text-center font-bold text-emerald-600 bg-emerald-50/30">{emp.servedNewYear}</td>
-                    <td className="p-4 px-6 text-center font-bold text-indigo-600 bg-indigo-50/30">{emp.servedRenewalYear}</td>
-                    <td className="p-4 px-6 text-center font-bold text-rose-600 bg-rose-50/30">{emp.servedRetirementYear}</td>
-                    <td className="p-4 px-8 text-right">
+                    <td className="p-2 px-4 text-center font-black text-indigo-600 text-base">{emp.servedTotalYear}</td>
+                    <td className="p-2 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30 text-sm">{emp.servedNewYear}</td>
+                    <td className="p-2 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30 text-sm">{emp.servedRenewalYear}</td>
+                    <td className="p-2 px-4 text-center font-bold text-rose-600 bg-rose-50/30 text-sm">{emp.servedRetirementYear}</td>
+                    <td className="p-2 px-4 text-right">
                       <button 
                         onClick={() => setEditingUser(emp)} 
-                        className="px-5 py-2 bg-surface border border-border rounded-xl font-bold text-sm text-text-main hover:bg-bg-color hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
+                        className="px-3 py-1.5 bg-surface border border-border rounded-lg font-bold text-[11px] text-text-main hover:bg-bg-color hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
                       >
                         Edit
                       </button>
@@ -243,21 +252,21 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div className="container py-8 max-w-[1400px] mx-auto px-6 lg:px-12">
+    <div className="container py-4 max-w-[1400px] mx-auto px-6 lg:px-12">
       
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 animate-slide-up">
-        <div className="flex items-center gap-6">
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-slide-up">
+        <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-4xl font-black tracking-tight text-text-main mb-2">Office Overview</h1>
-            <p className="text-text-muted m-0 font-medium text-lg">Real-time statistics for completed transactions.</p>
+            <h1 className="text-2xl font-black tracking-tight text-text-main mb-1">Office Overview</h1>
+            <p className="text-text-muted m-0 font-medium text-sm">Real-time statistics for completed transactions.</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <select 
             value={filterYear}
             onChange={handleYearChange}
-            className="py-2.5 px-4 rounded-xl border border-border text-sm cursor-pointer bg-surface text-text-main font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm"
+            className="py-1.5 px-3 rounded-lg border border-border text-xs cursor-pointer bg-surface text-text-main font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm"
           >
             {[...Array(5)].map((_, i) => {
               const y = new Date().getFullYear() - i;
@@ -265,10 +274,10 @@ export default function AdminDashboard() {
             })}
           </select>
           
-          <div className="h-8 w-px bg-border mx-2 hidden md:block"></div>
+          <div className="h-6 w-px bg-border mx-1 hidden md:block"></div>
           
           <button 
-            className="flex items-center gap-2 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer" 
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
             onClick={async () => {
               try {
                 const res = await api.autoBalanceCounters();
@@ -279,52 +288,52 @@ export default function AdminDashboard() {
               }
             }}
           >
-            <RefreshCw size={16} className="text-indigo-600" /> Auto-Balance
+            <RefreshCw size={14} className="text-indigo-600" /> Auto-Balance
           </button>
           <button 
-            className="flex items-center gap-2 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer" 
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
             onClick={handlePrint}
           >
-            <FileText size={16} className="text-indigo-600" /> Print Report
+            <FileText size={14} className="text-indigo-600" /> Print Report
           </button>
           <button 
-            className="flex items-center gap-2 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer" 
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
             onClick={() => setIsSettingsModalOpen(true)}
           >
-            <Settings size={16} className="text-indigo-600" /> Settings
+            <Settings size={14} className="text-indigo-600" /> Settings
           </button>
           <button  
-            className="flex items-center gap-2 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer" 
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
             onClick={() => setIsPrintModalOpen(true)}
           >
-            <Printer size={16} className="text-indigo-600" /> Print Tickets
+            <Printer size={14} className="text-indigo-600" /> Print Tickets
           </button>
           <button 
-            className="flex items-center gap-2 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-5 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ml-2" 
+            className="flex items-center gap-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-4 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ml-1" 
             onClick={() => setIsModalOpen(true)}
           >
-            <UserPlus size={16} /> Add Employee
+            <UserPlus size={14} /> Add Employee
           </button>
         </div>
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 animate-slide-up">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 animate-slide-up">
         {[
-          { label: 'Total Served', value: stats.office.total, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', icon: <Users size={24}/> },
-          { label: 'New Apps', value: stats.office.newApp, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: <TrendingUp size={24}/> },
-          { label: 'Renewals', value: stats.office.renewal, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', icon: <RefreshCw size={24}/> },
-          { label: 'Retirements', value: stats.office.retirement, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', icon: <X size={24}/> }
+          { label: 'Total Served', value: stats.office.total, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', icon: <Users size={18}/> },
+          { label: 'New Apps', value: stats.office.newApp, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: <TrendingUp size={18}/> },
+          { label: 'Renewals', value: stats.office.renewal, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', icon: <RefreshCw size={18}/> },
+          { label: 'Retirements', value: stats.office.retirement, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', icon: <X size={18}/> }
         ].map((kpi, idx) => (
-          <div key={idx} className="bg-surface rounded-3xl p-6 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${kpi.bg} opacity-50 pointer-events-none`}></div>
-            <div className="flex justify-between items-start mb-4 relative z-10">
-              <span className="text-xs font-black text-text-muted uppercase tracking-widest">{kpi.label}</span>
-              <div className={`w-10 h-10 rounded-2xl ${kpi.bg} ${kpi.color} flex items-center justify-center border ${kpi.border}`}>
+          <div key={idx} className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className={`absolute right-0 top-0 w-20 h-20 rounded-bl-full ${kpi.bg} opacity-50 pointer-events-none`}></div>
+            <div className="flex justify-between items-start mb-2 relative z-10">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">{kpi.label}</span>
+              <div className={`w-8 h-8 rounded-xl ${kpi.bg} ${kpi.color} flex items-center justify-center border ${kpi.border}`}>
                 {kpi.icon}
               </div>
             </div>
-            <span className={`text-5xl font-black tracking-tighter ${kpi.color} relative z-10`}>{kpi.value}</span>
+            <span className={`text-3xl font-black tracking-tighter ${kpi.color} relative z-10`}>{kpi.value}</span>
           </div>
         ))}
       </div>
@@ -439,27 +448,33 @@ export default function AdminDashboard() {
       </ModalWrapper>
 
       {/* Global Message Popup Window */}
-      <ModalWrapper isOpen={!!popupMessage} zIndex={9999} bg="rgba(15,23,42,0.6)">
-        {() => (
-          <div className={`bg-surface rounded-3xl w-[360px] p-8 text-center border border-border shadow-float animate-slide-up relative overflow-hidden`}>
-            
-            <div className={`absolute top-0 left-0 w-full h-2 ${popupMessage.type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
-            
-            <div className={`w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl font-black ${popupMessage.type === 'error' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-emerald-50 text-emerald-500 border border-emerald-100'}`}>
-              {popupMessage.type === 'error' ? '!' : '✓'}
+      <ModalWrapper isOpen={!!popupMessage} zIndex={9999} bg="rgba(0,0,0,0.6)">
+        {() => {
+          const isError = popupMessage.type === 'error';
+          return (
+            <div className="card w-[400px] bg-surface border border-border rounded-xl shadow-xl flex flex-col overflow-hidden animate-slide-up text-center p-8">
+              <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center border-4 ${isError ? 'bg-red-50 border-red-100 text-red-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                {isError ? (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                ) : (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+                )}
+              </div>
+              <h3 className={`m-0 mb-2 text-2xl font-extrabold tracking-tight ${isError ? 'text-red-600' : 'text-emerald-600'}`}>
+                {popupMessage.title}
+              </h3>
+              <p className="m-0 mb-6 text-text-main text-sm font-medium">
+                {popupMessage.message}
+              </p>
+              <button 
+                onClick={() => setPopupMessage(null)} 
+                className={`w-full py-3.5 font-bold rounded-lg border-none cursor-pointer transition-colors text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0 ${isError ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+              >
+                Okay, got it
+              </button>
             </div>
-            
-            <h3 className="m-0 mb-3 text-text-main font-extrabold text-xl tracking-tight">{popupMessage.title}</h3>
-            <p className="m-0 mb-8 text-text-muted text-sm font-medium leading-relaxed">{popupMessage.message}</p>
-            
-            <button 
-              onClick={() => setPopupMessage(null)} 
-              className="w-full p-4 bg-slate-100 border-none text-text-main font-bold rounded-xl hover:bg-slate-200 transition-colors cursor-pointer text-base"
-            >
-              Okay
-            </button>
-          </div>
-        )}
+          );
+        }}
       </ModalWrapper>
 
     </div>

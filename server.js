@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
 setInterval(() => autoBalanceCounters(), 5 * 60 * 1000);
 
 // Start Server
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });

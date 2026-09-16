@@ -7,15 +7,18 @@ export default function ReceptionistDashboard({ user }) {
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [latestTicket, setLatestTicket] = useState(null);
   const [queue, setQueue] = useState([]);
+  const [priorityGroups, setPriorityGroups] = useState([]);
   
   const fetchData = async () => {
     try {
-      const [servicesData, queueData] = await Promise.all([
+      const [servicesData, queueData, priorityGroupsData] = await Promise.all([
         api.getServices(),
-        api.getWaitingQueue()
+        api.getWaitingQueue(),
+        api.getPriorityGroups()
       ]);
       setServices(servicesData);
       setQueue(queueData);
+      setPriorityGroups(priorityGroupsData);
     } catch (err) {
       console.error(err);
     }
@@ -26,10 +29,12 @@ export default function ReceptionistDashboard({ user }) {
     socket.on('queueUpdated', fetchData);
     socket.on('ticketCreated', fetchData);
     socket.on('ticketDeleted', fetchData);
+    socket.on('priorityGroupsUpdated', fetchData);
     return () => {
-      socket.off('queueUpdated');
-      socket.off('ticketCreated');
-      socket.off('ticketDeleted');
+      socket.off('queueUpdated', fetchData);
+      socket.off('ticketCreated', fetchData);
+      socket.off('ticketDeleted', fetchData);
+      socket.off('priorityGroupsUpdated', fetchData);
     };
   }, []);
 
@@ -79,7 +84,7 @@ export default function ReceptionistDashboard({ user }) {
                       <span className={`text-base font-extrabold ${textColorClass}`}>{ticket.number}</span>
                       {ticket.priorityType && ticket.priorityType !== 'REGULAR' && (
                         <span title={`Priority: ${ticket.priorityType}`} className="bg-danger text-white text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wider">
-                          {ticket.priorityType}
+                          {priorityGroups.find(g => g.name === ticket.priorityType)?.shortLabel || ticket.priorityType}
                         </span>
                       )}
                     </div>
@@ -153,14 +158,19 @@ export default function ReceptionistDashboard({ user }) {
             <h2 className="mb-6 text-text-main font-bold text-2xl">Select Priority Group</h2>
             
             <div className="flex flex-col gap-4">
-              <button onClick={() => handleGenerateTicket('PWD')} className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover">PWD</button>
-              <button onClick={() => handleGenerateTicket('SENIOR')} className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover">Senior Citizen</button>
-              <button onClick={() => handleGenerateTicket('PREGNANT')} className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover">Pregnant Woman</button>
-              <button onClick={() => handleGenerateTicket('RETURNING')} className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover">Returning Client</button>
+              {priorityGroups.filter(g => g.isActive).map(group => (
+                <button 
+                  key={group.id} 
+                  onClick={() => handleGenerateTicket(group.name)} 
+                  className="btn bg-primary text-white p-4 text-lg rounded-lg font-semibold hover:bg-primary-hover shadow-sm"
+                >
+                  {group.label}
+                </button>
+              ))}
               
               <div className="my-2 border-t border-border"></div>
               
-              <button onClick={() => handleGenerateTicket('REGULAR')} className="btn bg-surface border-2 border-border text-text-main p-4 text-lg rounded-lg font-semibold hover:bg-bg-color">None / Regular</button>
+              <button onClick={() => handleGenerateTicket('REGULAR')} className="btn bg-surface border-2 border-border text-text-main p-4 text-lg rounded-lg font-semibold hover:bg-bg-color shadow-sm">None / Regular</button>
             </div>
             
             <button onClick={() => setShowPriorityModal(false)} className="btn mt-6 bg-transparent text-text-muted border-none cursor-pointer hover:text-text-main text-base font-medium">Cancel</button>

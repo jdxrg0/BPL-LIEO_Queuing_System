@@ -100,3 +100,22 @@ a {
   animation: marquee 30s linear infinite;
   display: inline-flex;
 }
+
+/* Glow Pulse Hover Effect */
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 4px 0px var(--glow-color); }
+  50% { box-shadow: 0 0 12px 3px var(--glow-color); }
+  100% { box-shadow: 0 0 4px 0px var(--glow-color); }
+}
+.ticket-glow-hover {
+  transition: border-color 0.3s ease;
+}
+.ticket-glow-hover:hover {
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+.glow-emerald { --glow-color: rgba(5, 150, 105, 0.35); }
+.glow-emerald:hover { border-color: #059669; }
+.glow-indigo { --glow-color: rgba(79, 70, 229, 0.35); }
+.glow-indigo:hover { border-color: #4f46e5; }
+.glow-rose { --glow-color: rgba(225, 29, 72, 0.35); }
+.glow-rose:hover { border-color: #e11d48; }
