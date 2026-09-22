@@ -13,48 +13,67 @@ const MobileTracker = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let unsubscribe = () => {};
+
     try {
       const q = query(collection(db, 'live_tickets'), where('status', '==', 'SERVING'));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      
+      // Primary: Real-time listener (instant when WebSocket is alive)
+      unsubscribe = onSnapshot(q, (snapshot) => {
         const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         tickets.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
         setServingTickets(tickets);
         setLoading(false);
       }, (err) => {
         console.error("Firebase error:", err);
-        setError("Could not connect to live tracker.");
+        // Don't show error — polling fallback will handle it
         setLoading(false);
       });
 
-      // --- INSTANT LAN FAST-PATH ---
-      // If the phone is connected to the same Wi-Fi as the server, it will receive the 
-      // Socket.io event instantly and bypass the 2-second Firebase internet delay.
-      const handleTicketCalled = (ticket) => {
-        setServingTickets(prev => {
-          const filtered = prev.filter(t => t.id !== ticket.id);
-          return [ticket, ...filtered]; // Add new ticket to top instantly
-        });
-        
-        // If they are currently searching for this exact ticket, update it instantly
-        setMyTicketResult(prev => {
-          if (prev && prev.number === ticket.number) {
-            return { ...prev, status: 'SERVING', counterId: ticket.counterId };
-          }
-          return prev;
-        });
-      };
-
-      socket.on('ticketCalled', handleTicketCalled);
-
-      return () => {
-        unsubscribe();
-        socket.off('ticketCalled', handleTicketCalled);
-      };
     } catch (err) {
       console.warn("Firebase not fully configured yet.");
-      setError("Waiting for Firebase configuration.");
       setLoading(false);
     }
+
+    // --- POLLING FALLBACK (for Vercel / public internet) ---
+    // Firebase onSnapshot can silently lose its WebSocket connection.
+    // This guarantees the tracker updates every 5 seconds no matter what.
+    const pollInterval = setInterval(async () => {
+      try {
+        const q = query(collection(db, 'live_tickets'), where('status', '==', 'SERVING'));
+        const snapshot = await getDocs(q);
+        const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        tickets.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+        setServingTickets(tickets);
+      } catch (err) {
+        // Silently ignore polling errors
+      }
+    }, 5000);
+
+    // --- INSTANT LAN FAST-PATH ---
+    // If the phone is on the same Wi-Fi as the server, Socket.io
+    // delivers the update instantly, bypassing any internet delay.
+    const handleTicketCalled = (ticket) => {
+      setServingTickets(prev => {
+        const filtered = prev.filter(t => t.id !== ticket.id);
+        return [ticket, ...filtered];
+      });
+      
+      setMyTicketResult(prev => {
+        if (prev && prev.number === ticket.number) {
+          return { ...prev, status: 'SERVING', counterId: ticket.counterId };
+        }
+        return prev;
+      });
+    };
+
+    socket.on('ticketCalled', handleTicketCalled);
+
+    return () => {
+      unsubscribe();
+      clearInterval(pollInterval);
+      socket.off('ticketCalled', handleTicketCalled);
+    };
   }, []);
 
   const handleSearch = async (e) => {
