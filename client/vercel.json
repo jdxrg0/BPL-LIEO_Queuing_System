@@ -1,0 +1,10 @@
+{
+  "installCommand": "npm install && cd node_modules/esbuild && node install.js",
+  "buildCommand": "node node_modules/vite/bin/vite.js build",
+  "redirects": [
+    { "source": "/", "destination": "/tracker", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

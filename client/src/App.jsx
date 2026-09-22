@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import StaffDashboard from './components/StaffDashboard';
-import TVDisplay from './components/TVDisplay';
-import KioskMode from './components/KioskMode';
-import AdminDashboard from './components/AdminDashboard';
-import PrintTickets from './components/PrintTickets';
-import PrintStats from './components/PrintStats';
-import Login from './components/Login';
-import Layout from './components/Layout';
+import StaffDashboard from './pages/StaffDashboard';
+import TVDisplay from './pages/TVDisplay';
+import AdminDashboard from './pages/AdminDashboard';
+import PrintTickets from './components/Print/PrintTickets';
+import PrintStats from './components/Print/PrintStats';
+import MobileTracker from './pages/MobileTracker';
+import Login from './pages/Login';
+import Layout from './components/Layout/Layout';
 import { api, socket } from './api';
 
 function App() {
@@ -28,14 +28,15 @@ function App() {
         return;
       }
 
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      
-      // Fetch fresh data silently in the background
-      api.getUser(parsedUser.id).then(freshUser => {
-        setUser(freshUser);
-        localStorage.setItem('bplo_user', JSON.stringify(freshUser));
-      }).catch(err => console.error('Failed to refresh user data', err));
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+      } catch (err) {
+        console.error('Failed to parse user session', err);
+        localStorage.removeItem('bplo_user');
+        localStorage.removeItem('bplo_login_date');
+        setUser(null);
+      }
     }
   }, []);
 
@@ -51,9 +52,23 @@ function App() {
       });
     };
 
+    const handleUserDeleted = (deletedUserId) => {
+      setUser(prev => {
+        if (prev && prev.id === deletedUserId) {
+          localStorage.removeItem('bplo_user');
+          localStorage.removeItem('bplo_login_date');
+          return null; // This will trigger the Navigate to login
+        }
+        return prev;
+      });
+    };
+
     socket.on('userUpdated', handleUserUpdated);
+    socket.on('userDeleted', handleUserDeleted);
+    
     return () => {
       socket.off('userUpdated', handleUserUpdated);
+      socket.off('userDeleted', handleUserDeleted);
     };
   }, []);
 
@@ -75,12 +90,14 @@ function App() {
       <Route path="/print-tickets" element={<PrintTickets />} />
       <Route path="/print-stats" element={<PrintStats />} />
       <Route path="/display" element={<TVDisplay />} />
-      <Route path="/kiosk" element={<KioskMode />} />
+      <Route path="/tracker" element={<MobileTracker />} />
 
       {/* Protected Routes Wrapper */}
       <Route element={user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
-        {/* Route for Staff */}
-        <Route path="/staff" element={<StaffDashboard user={user} />} />
+        {/* Route for Staff/Receptionist */}
+        <Route path="/staff" element={
+          <StaffDashboard user={user} />
+        } />
         
         {/* Route for Admin with RBAC check */}
         <Route path="/admin" element={

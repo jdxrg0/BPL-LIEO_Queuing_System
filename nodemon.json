@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    "prisma/*.db",
+    "prisma/*.db-journal",
+    "client/*"
+  ]
+}
