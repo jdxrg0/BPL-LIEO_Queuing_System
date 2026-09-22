@@ -284,14 +284,19 @@ const getLiveWaitTimes = async (req, res) => {
   }
 };
 
+const { clearCloudDatabase } = require('../services/cloudSync.service');
+
 const resetAllData = async (req, res) => {
   try {
     if (req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
-    // Delete all tickets
+    // Delete all tickets locally
     await prisma.ticket.deleteMany({});
+    
+    // Delete all tickets in Firebase to prevent accumulation
+    await clearCloudDatabase();
     
     // Notify all clients to fetch fresh data
     socketConfig.getIo().emit('queueUpdated');

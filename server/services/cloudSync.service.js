@@ -99,8 +99,29 @@ const catchUpSync = async (prismaInstance = prisma) => {
   }
 };
 
+/**
+ * Clear the entire live_tickets collection from Firebase.
+ * Called when the Admin clicks "Reset All Data".
+ */
+const clearCloudDatabase = async () => {
+  if (!db) return;
+
+  try {
+    const snapshot = await db.collection('live_tickets').get();
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log(`Cloud Sync: Cleared ${snapshot.docs.length} tickets from Firebase.`);
+  } catch (error) {
+    console.error('Cloud Sync Error: Failed to clear database', error.message);
+  }
+};
+
 module.exports = {
   syncTicket,
   removeTicket,
-  catchUpSync
+  catchUpSync,
+  clearCloudDatabase
 };

@@ -322,11 +322,8 @@ const updateTicketStatus = async (req, res) => {
     }
 
     // Cloud Sync Logic
-    if (status === 'COMPLETED' || status === 'NO_SHOW' || status === 'POSTPONED') {
-      await removeTicket(ticket.id);
-    } else {
-      await syncTicket(ticket);
-    }
+    // We now sync terminal states to Firebase so the Live Tracker can display "NO SHOW" or "COMPLETED"
+    await syncTicket(ticket);
 
     res.json(ticket);
 

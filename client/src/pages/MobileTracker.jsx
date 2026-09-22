@@ -239,9 +239,15 @@ const MobileTracker = () => {
                 
                 <p className={`text-sm font-extrabold uppercase tracking-widest m-0 mb-4 ${
                   myTicketResult.status === 'SERVING' ? 'text-emerald-600 dark:text-emerald-400' : 
-                  myTicketResult.status === 'COMPLETED' ? 'text-slate-500' : 'text-amber-500'
+                  myTicketResult.status === 'COMPLETED' ? 'text-slate-500' : 
+                  myTicketResult.status === 'NO_SHOW' ? 'text-rose-600 dark:text-rose-400' :
+                  myTicketResult.status === 'POSTPONED' ? 'text-orange-500' :
+                  'text-amber-500'
                 }`}>
-                  {myTicketResult.status === 'COMPLETED' ? 'TRANSACTION FINISHED' : myTicketResult.status}
+                  {myTicketResult.status === 'COMPLETED' ? 'TRANSACTION FINISHED' : 
+                   myTicketResult.status === 'NO_SHOW' ? 'NO SHOW' :
+                   myTicketResult.status === 'POSTPONED' ? 'ON HOLD' :
+                   myTicketResult.status}
                 </p>
                 
                 {myTicketResult.status === 'WAITING' && (
@@ -258,7 +264,19 @@ const MobileTracker = () => {
 
                 {myTicketResult.status === 'COMPLETED' && (
                   <div className="text-sm text-text-muted mt-2">
-                    This ticket has been completed or removed from the queue.
+                    This transaction has been successfully completed.
+                  </div>
+                )}
+
+                {myTicketResult.status === 'NO_SHOW' && (
+                  <div className="text-sm text-text-muted mt-2 px-4 text-center">
+                    You missed your turn. Please proceed to the receptionist for assistance or generate a new ticket.
+                  </div>
+                )}
+
+                {myTicketResult.status === 'POSTPONED' && (
+                  <div className="text-sm text-text-muted mt-2 px-4 text-center">
+                    Your transaction was put on hold. Please wait for further instructions from the staff.
                   </div>
                 )}
               </div>
