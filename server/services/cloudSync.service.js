@@ -1,6 +1,7 @@
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const path = require('path');
+const prisma = require('../config/db');
 
 let db = null;
 let isOffline = false;
@@ -45,6 +46,8 @@ const syncTicket = async (ticket) => {
     if (isOffline) {
       console.log('Cloud Sync: Reconnected and synced ticket', ticket.number);
       isOffline = false;
+      // Trigger a full catch-up sync in the background to push any missed tickets
+      catchUpSync().catch(err => console.error("Offline recovery sync failed:", err.message));
     }
   } catch (error) {
     if (!isOffline) {
@@ -73,12 +76,12 @@ const removeTicket = async (ticketId) => {
 /**
  * Perform an initial catch-up sync of all active tickets on server startup.
  */
-const catchUpSync = async (prisma) => {
+const catchUpSync = async (prismaInstance = prisma) => {
   if (!db) return;
   
   console.log('Cloud Sync: Performing catch-up sync...');
   try {
-    const activeTickets = await prisma.ticket.findMany({
+    const activeTickets = await prismaInstance.ticket.findMany({
       where: {
         status: {
           in: ['WAITING', 'SERVING']

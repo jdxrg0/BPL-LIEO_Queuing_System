@@ -322,7 +322,7 @@ const updateTicketStatus = async (req, res) => {
     }
 
     // Cloud Sync Logic
-    if (status === 'COMPLETED' || status === 'NO_SHOW') {
+    if (status === 'COMPLETED' || status === 'NO_SHOW' || status === 'POSTPONED') {
       await removeTicket(ticket.id);
     } else {
       await syncTicket(ticket);

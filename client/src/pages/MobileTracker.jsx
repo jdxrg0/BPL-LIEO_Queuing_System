@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { Search, MonitorPlay, Users } from 'lucide-react';
 import { db } from '../firebase';
@@ -11,6 +11,8 @@ const MobileTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const unsubscribeSearchRef = useRef(null);
+  const unsubscribeWaitQRef = useRef(null);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -73,6 +75,8 @@ const MobileTracker = () => {
       unsubscribe();
       clearInterval(pollInterval);
       socket.off('ticketCalled', handleTicketCalled);
+      if (unsubscribeSearchRef.current) unsubscribeSearchRef.current();
+      if (unsubscribeWaitQRef.current) unsubscribeWaitQRef.current();
     };
   }, []);
 
@@ -99,33 +103,71 @@ const MobileTracker = () => {
     setIsSearching(true);
     setMyTicketResult(null);
 
+    if (unsubscribeSearchRef.current) unsubscribeSearchRef.current();
+    if (unsubscribeWaitQRef.current) unsubscribeWaitQRef.current();
+
     try {
       const q = query(collection(db, 'live_tickets'), where('number', '==', searchTicket.toUpperCase().trim()));
-      const querySnapshot = await getDocs(q);
       
-      if (querySnapshot.empty) {
-        setMyTicketResult({ error: 'Ticket not found.' });
-      } else {
-        const t = querySnapshot.docs[0].data();
-        let peopleAhead = 0;
-        if (t.status === 'WAITING') {
-          const waitQ = query(collection(db, 'live_tickets'), where('status', '==', 'WAITING'), where('serviceId', '==', t.serviceId));
-          const waitSnap = await getDocs(waitQ);
-          const waitingList = waitSnap.docs.map(d => d.data());
-          waitingList.sort((a, b) => (a.updatedAt?.seconds || 0) - (b.updatedAt?.seconds || 0));
-          const myIndex = waitingList.findIndex(item => item.number === t.number);
-          if (myIndex > 0) {
-            peopleAhead = myIndex;
+      unsubscribeSearchRef.current = onSnapshot(q, (querySnapshot) => {
+        setIsSearching(false);
+        
+        if (querySnapshot.empty) {
+          // If the ticket was previously found but is now missing from live_tickets,
+          // it means the transaction was completed, deleted, or postponed.
+          setMyTicketResult(prev => {
+            if (prev && (prev.status === 'SERVING' || prev.status === 'WAITING')) {
+              return { ...prev, status: 'COMPLETED', peopleAhead: 0 };
+            }
+            return { error: 'Ticket not found in live queue.' };
+          });
+          
+          if (unsubscribeWaitQRef.current) {
+            unsubscribeWaitQRef.current();
+            unsubscribeWaitQRef.current = null;
+          }
+        } else {
+          const t = querySnapshot.docs[0].data();
+          
+          if (t.status === 'WAITING') {
+            // Subscribe to the WAITING queue to dynamically calculate people ahead
+            if (!unsubscribeWaitQRef.current) {
+              const waitQ = query(collection(db, 'live_tickets'), where('status', '==', 'WAITING'), where('serviceId', '==', t.serviceId));
+              unsubscribeWaitQRef.current = onSnapshot(waitQ, (waitSnap) => {
+                const waitingList = waitSnap.docs.map(d => d.data());
+                waitingList.sort((a, b) => (a.updatedAt?.seconds || 0) - (b.updatedAt?.seconds || 0));
+                const myIndex = waitingList.findIndex(item => item.number === t.number);
+                
+                setMyTicketResult(prev => {
+                  if (prev && prev.number === t.number && prev.status === 'WAITING') {
+                    return { ...prev, peopleAhead: myIndex > 0 ? myIndex : 0 };
+                  }
+                  return prev;
+                });
+              });
+            }
+            // Temporarily set peopleAhead to 0 until the waitQ snapshot fires
+            setMyTicketResult(prev => ({ ...t, peopleAhead: prev?.peopleAhead || 0 }));
+          } else {
+            // Ticket is SERVING
+            if (unsubscribeWaitQRef.current) {
+              unsubscribeWaitQRef.current();
+              unsubscribeWaitQRef.current = null;
+            }
+            setMyTicketResult(t);
           }
         }
-        setMyTicketResult({ ...t, peopleAhead });
-      }
+      }, (err) => {
+        console.error(err);
+        setMyTicketResult({ error: 'Search failed.' });
+        setIsSearching(false);
+      });
+      
     } catch (err) {
       console.error(err);
       setMyTicketResult({ error: 'Search failed.' });
+      setIsSearching(false);
     }
-    
-    setIsSearching(false);
   };
 
   const getPriorityColor = (priority) => {
@@ -196,9 +238,10 @@ const MobileTracker = () => {
                 </h2>
                 
                 <p className={`text-sm font-extrabold uppercase tracking-widest m-0 mb-4 ${
-                  myTicketResult.status === 'SERVING' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'
+                  myTicketResult.status === 'SERVING' ? 'text-emerald-600 dark:text-emerald-400' : 
+                  myTicketResult.status === 'COMPLETED' ? 'text-slate-500' : 'text-amber-500'
                 }`}>
-                  {myTicketResult.status}
+                  {myTicketResult.status === 'COMPLETED' ? 'TRANSACTION FINISHED' : myTicketResult.status}
                 </p>
                 
                 {myTicketResult.status === 'WAITING' && (
@@ -210,6 +253,12 @@ const MobileTracker = () => {
                 {myTicketResult.status === 'SERVING' && (
                   <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold bg-white dark:bg-emerald-950/50 px-4 py-2 rounded-lg shadow-sm border border-emerald-100 dark:border-emerald-900/50">
                     <MonitorPlay size={18} /> Go to Counter {myTicketResult.counterId}
+                  </div>
+                )}
+
+                {myTicketResult.status === 'COMPLETED' && (
+                  <div className="text-sm text-text-muted mt-2">
+                    This ticket has been completed or removed from the queue.
                   </div>
                 )}
               </div>
