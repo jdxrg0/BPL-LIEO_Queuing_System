@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { autoBalanceCounters } = require('./meta.controller');
+const { syncTicket, removeTicket } = require('../services/cloudSync.service');
 
 const getPostponedTickets = async (req, res) => {
   try {
@@ -226,6 +227,9 @@ const createTicket = async (req, res) => {
       await autoBalanceCounters(null, null);
     }
 
+    // Sync to Cloud for Live Tracker
+    await syncTicket(ticket);
+
     res.json(ticket);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -238,6 +242,10 @@ const deleteTicket = async (req, res) => {
     const ticket = await prisma.ticket.delete({ where: { id: parseInt(id) } });
     socketConfig.getIo().emit('ticketDeleted', { id: parseInt(id) });
     notifyApproachingTickets(ticket.serviceId);
+    
+    // Remove from Cloud
+    await removeTicket(parseInt(id));
+    
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -281,6 +289,9 @@ const callTicket = async (req, res) => {
       await autoBalanceCounters(null, null);
     }
 
+    // Sync to Cloud
+    await syncTicket(ticket);
+
     res.json(ticket);
     
     notifyApproachingTickets(ticket.serviceId);
@@ -308,6 +319,13 @@ const updateTicketStatus = async (req, res) => {
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     if (settings?.autoAdaptive) {
       await autoBalanceCounters(null, null);
+    }
+
+    // Cloud Sync Logic
+    if (status === 'COMPLETED' || status === 'NO_SHOW') {
+      await removeTicket(ticket.id);
+    } else {
+      await syncTicket(ticket);
     }
 
     res.json(ticket);

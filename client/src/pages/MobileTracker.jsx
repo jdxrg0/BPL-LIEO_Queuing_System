@@ -1,235 +1,226 @@
 import React, { useState, useEffect } from 'react';
-import io from 'socket.io-client';
-import { api } from '../api';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { Search, MonitorPlay, Users } from 'lucide-react';
+import { db } from '../firebase';
+import { socket } from '../api';
 
-const socket = io('http://localhost:3001'); // Ensure this matches your backend URL
-
-export default function MobileTracker() {
-  const [ticketNumber, setTicketNumber] = useState('');
-  const [isTracking, setIsTracking] = useState(false);
-  const [ticketData, setTicketData] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const playChime = () => {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-      oscillator.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1); // A6
-      
-      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-      
-      oscillator.start(audioCtx.currentTime);
-      oscillator.stop(audioCtx.currentTime + 1);
-
-      if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-      }
-    } catch(e) { console.error('Audio failed', e); }
-  };
-
-  // Helper to convert base64 VAPID to Uint8Array
-  const urlBase64ToUint8Array = (base64String) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  };
-
-  const registerPushSubscription = async (ticketNumber) => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY)
-        });
-        
-        await api.subscribeToPush(ticketNumber, subscription);
-        console.log('Subscribed to Push successfully!');
-      } catch (err) {
-        console.error('Failed to subscribe to push:', err);
-      }
-    }
-  };
-
-  const requestNotificationPermission = async (ticketNum) => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        registerPushSubscription(ticketNum);
-      }
-    }
-  };
-
-  const fetchTicketData = async (number) => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await api.trackTicket(number);
-      setTicketData(res.data);
-      setIsTracking(true);
-
-      // Check if we need to send an active chime (if they are staring at the screen)
-      // The backend Web Push handles background/locked notifications!
-      if (res.data.status === 'WAITING' && res.data.trueRank <= 2) {
-        playChime();
-      } else if (res.data.status === 'SERVING' || res.data.status === 'COMPLETED') {
-        playChime();
-      }
-    } catch (err) {
-      setError(err.message || 'Ticket not found or error occurred.');
-      setIsTracking(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartTracking = (e) => {
-    e.preventDefault();
-    if (!ticketNumber.trim()) return;
-    const num = ticketNumber.trim().toUpperCase();
-    fetchTicketData(num);
-    requestNotificationPermission(num);
-  };
+const MobileTracker = () => {
+  const [servingTickets, setServingTickets] = useState([]);
+  const [searchTicket, setSearchTicket] = useState('');
+  const [myTicketResult, setMyTicketResult] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // If we are actively tracking a ticket, listen for queue updates
-    if (isTracking && ticketData?.ticket?.status === 'WAITING') {
-      const handleQueueUpdate = () => {
-        // Re-fetch the live data behind the scenes
-        fetchTicketData(ticketData.ticket.number);
+    try {
+      const q = query(collection(db, 'live_tickets'), where('status', '==', 'SERVING'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        tickets.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+        setServingTickets(tickets);
+        setLoading(false);
+      }, (err) => {
+        console.error("Firebase error:", err);
+        setError("Could not connect to live tracker.");
+        setLoading(false);
+      });
+
+      // --- INSTANT LAN FAST-PATH ---
+      // If the phone is connected to the same Wi-Fi as the server, it will receive the 
+      // Socket.io event instantly and bypass the 2-second Firebase internet delay.
+      const handleTicketCalled = (ticket) => {
+        setServingTickets(prev => {
+          const filtered = prev.filter(t => t.id !== ticket.id);
+          return [ticket, ...filtered]; // Add new ticket to top instantly
+        });
+        
+        // If they are currently searching for this exact ticket, update it instantly
+        setMyTicketResult(prev => {
+          if (prev && prev.number === ticket.number) {
+            return { ...prev, status: 'SERVING', counterId: ticket.counterId };
+          }
+          return prev;
+        });
       };
 
-      socket.on('queueUpdated', handleQueueUpdate);
-      socket.on('ticketCalled', handleQueueUpdate);
+      socket.on('ticketCalled', handleTicketCalled);
 
       return () => {
-        socket.off('queueUpdated', handleQueueUpdate);
-        socket.off('ticketCalled', handleQueueUpdate);
+        unsubscribe();
+        socket.off('ticketCalled', handleTicketCalled);
       };
+    } catch (err) {
+      console.warn("Firebase not fully configured yet.");
+      setError("Waiting for Firebase configuration.");
+      setLoading(false);
     }
-  }, [isTracking, ticketData]);
+  }, []);
 
-  if (!isTracking) {
-    return (
-      <div className="min-h-screen bg-bg-color flex items-center justify-center p-4">
-        <div className="card w-full max-w-md p-8 shadow-xl bg-surface rounded-2xl border border-border">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-extrabold text-primary mb-2">Live Tracker</h1>
-            <p className="text-text-muted">Enter your ticket number to track your wait time live.</p>
-          </div>
-          
-          <form onSubmit={handleStartTracking} className="flex flex-col gap-6">
-            <div>
-              <input 
-                type="text" 
-                placeholder="e.g. NW-0916-001" 
-                value={ticketNumber}
-                onChange={(e) => setTicketNumber(e.target.value)}
-                className="input-field text-center text-2xl font-bold uppercase tracking-widest py-4"
-                required
-              />
-            </div>
-            
-            {error && <div className="text-danger text-center font-medium bg-danger/10 p-3 rounded-lg">{error}</div>}
-            
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="btn btn-primary w-full py-4 text-lg font-bold shadow-lg"
-            >
-              {loading ? 'Searching...' : 'Track Ticket'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTicket.trim()) return;
+    
+    setIsSearching(true);
+    setMyTicketResult(null);
+
+    try {
+      const q = query(collection(db, 'live_tickets'), where('number', '==', searchTicket.toUpperCase().trim()));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        setMyTicketResult({ error: 'Ticket not found.' });
+      } else {
+        const t = querySnapshot.docs[0].data();
+        let peopleAhead = 0;
+        if (t.status === 'WAITING') {
+          const waitQ = query(collection(db, 'live_tickets'), where('status', '==', 'WAITING'), where('serviceId', '==', t.serviceId));
+          const waitSnap = await getDocs(waitQ);
+          const waitingList = waitSnap.docs.map(d => d.data());
+          waitingList.sort((a, b) => (a.updatedAt?.seconds || 0) - (b.updatedAt?.seconds || 0));
+          const myIndex = waitingList.findIndex(item => item.number === t.number);
+          if (myIndex > 0) {
+            peopleAhead = myIndex;
+          }
+        }
+        setMyTicketResult({ ...t, peopleAhead });
+      }
+    } catch (err) {
+      console.error(err);
+      setMyTicketResult({ error: 'Search failed.' });
+    }
+    
+    setIsSearching(false);
+  };
+
+  const getPriorityColor = (priority) => {
+    if (priority === 'PWD') return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400';
+    if (priority === 'SENIOR') return 'text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400';
+    return 'text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400';
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-text-muted bg-bg-color">Loading...</div>;
   }
 
-  // Live Tracking View
-  const { ticket, trueRank, estimatedWaitMins } = ticketData;
-  const isCalled = ticket.status === 'SERVING' || ticket.status === 'COMPLETED';
+  if (error) {
+    return <div className="min-h-screen flex items-center justify-center text-rose-500 font-bold bg-bg-color">{error}</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-bg-color p-4 md:p-8 flex flex-col items-center justify-center">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-bg-color text-text-main p-4 md:p-6 font-sans w-full overflow-x-hidden box-border">
+      <div className="w-full max-w-md mx-auto flex flex-col gap-6 pt-4 pb-10">
         
-        <div className="flex justify-between items-center mb-6 px-2">
-          <h2 className="text-xl font-bold text-text-main">Live Status</h2>
-          <button 
-            onClick={() => setIsTracking(false)} 
-            className="text-sm text-primary font-semibold hover:underline"
-          >
-            Track Another
-          </button>
+        {/* Simple Header */}
+        <div className="text-center px-2">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight m-0 text-text-main">
+            BPLO Live Tracker
+          </h1>
+          <p className="text-sm text-text-muted mt-1 m-0">
+            Check your queue status
+          </p>
         </div>
 
-        <div className={`card overflow-hidden shadow-2xl rounded-3xl border-2 transition-colors duration-500 ${isCalled ? 'border-success bg-success/5' : 'border-primary/30 bg-surface'}`}>
-          
-          <div className={`text-center py-8 text-white ${isCalled ? 'bg-success' : 'bg-primary'}`}>
-            <p className="text-sm font-semibold opacity-80 uppercase tracking-widest mb-1">Ticket Number</p>
-            <h1 className="text-5xl font-black tracking-tight">{ticket.number}</h1>
-            <p className="mt-2 text-lg font-medium opacity-90">{ticket.service.name}</p>
-          </div>
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="flex gap-2 w-full px-1 box-border">
+          <input 
+            type="text" 
+            className="flex-1 min-w-0 bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors uppercase placeholder-slate-400 shadow-sm"
+            placeholder="Ticket No. (e.g. N-001)" 
+            value={searchTicket}
+            onChange={(e) => setSearchTicket(e.target.value)}
+          />
+          <button 
+            type="submit" 
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-3 font-bold disabled:opacity-50 transition-colors flex items-center justify-center shadow-sm shrink-0"
+            disabled={isSearching || !searchTicket.trim()}
+          >
+            {isSearching ? <span className="animate-spin text-lg">↻</span> : <Search size={20}/>}
+          </button>
+        </form>
 
-          <div className="p-8 flex flex-col gap-8">
-            
-            {isCalled ? (
-              <div className="text-center animate-bounce">
-                <h2 className="text-3xl font-extrabold text-success mb-2">PLEASE PROCEED!</h2>
-                <p className="text-text-muted text-lg">Your ticket has been called to</p>
-                <div className="mt-4 inline-block bg-success/20 text-success font-black text-2xl px-6 py-3 rounded-xl border border-success/30">
-                  {ticket.counter?.name || 'A Window'}
-                </div>
+        {/* Search Result */}
+        {myTicketResult && (
+          <div className="animate-slide-up w-full px-1 box-border">
+            {myTicketResult.error ? (
+              <div className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 p-4 rounded-xl text-center font-bold text-sm border border-rose-200 dark:border-rose-500/20">
+                {myTicketResult.error}
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-bg-color p-4 rounded-2xl text-center border border-border">
-                    <p className="text-xs text-text-muted font-bold uppercase tracking-wider mb-1">Position in Line</p>
-                    <div className="text-4xl font-black text-text-main">{trueRank}</div>
+              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full ${
+                myTicketResult.status === 'SERVING' 
+                  ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
+                  : 'bg-surface border-border'
+              }`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border mb-3 ${getPriorityColor(myTicketResult.priorityType)}`}>
+                  {myTicketResult.priorityType || 'REGULAR'}
+                </span>
+                
+                <h2 className="text-5xl font-black tracking-tighter m-0 mb-1 text-text-main">
+                  {myTicketResult.number}
+                </h2>
+                
+                <p className={`text-sm font-extrabold uppercase tracking-widest m-0 mb-4 ${
+                  myTicketResult.status === 'SERVING' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'
+                }`}>
+                  {myTicketResult.status}
+                </p>
+                
+                {myTicketResult.status === 'WAITING' && (
+                  <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+                    <Users size={16} /> {myTicketResult.peopleAhead} people ahead
                   </div>
-                  <div className="bg-bg-color p-4 rounded-2xl text-center border border-border">
-                    <p className="text-xs text-text-muted font-bold uppercase tracking-wider mb-1">Est. Wait</p>
-                    <div className="text-4xl font-black text-warning">
-                      {estimatedWaitMins > 0 ? `${estimatedWaitMins}m` : '<1m'}
+                )}
+                
+                {myTicketResult.status === 'SERVING' && (
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold bg-white dark:bg-emerald-950/50 px-4 py-2 rounded-lg shadow-sm border border-emerald-100 dark:border-emerald-900/50">
+                    <MonitorPlay size={18} /> Go to Counter {myTicketResult.counterId}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Currently Serving Simple List */}
+        <div className="mt-4 w-full px-1 box-border">
+          <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-3 px-1 flex items-center gap-2">
+            <MonitorPlay size={16} /> Now Serving
+          </h3>
+          
+          {servingTickets.length === 0 ? (
+            <div className="text-center p-6 border border-dashed border-border rounded-xl text-text-muted text-sm bg-surface/50">
+              No tickets currently serving.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {servingTickets.map((ticket) => (
+                <div key={ticket.id} className="bg-surface border border-border rounded-xl p-4 flex justify-between items-center shadow-sm w-full">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-2xl font-black m-0 text-text-main">
+                        {ticket.number}
+                      </h4>
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${getPriorityColor(ticket.priorityType)}`}>
+                        {ticket.priorityType || 'REG'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right flex flex-col items-end">
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest m-0 mb-0.5">Counter</p>
+                    <div className="bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm">
+                      {ticket.counterId || '?'}
                     </div>
                   </div>
                 </div>
-
-                {trueRank <= 3 && (
-                  <div className="bg-warning/10 border-l-4 border-warning p-4 rounded-r-lg">
-                    <p className="text-warning-dark font-bold m-0 flex items-center gap-2">
-                      <span className="text-xl">⚠️</span> Be ready! Your turn is very near.
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
-          </div>
+              ))}
+            </div>
+          )}
         </div>
-        
-        <div className="mt-8 text-center">
-          <p className="text-xs text-text-muted">
-            Updates automatically. Do not close this tab if you want to receive push notifications.
-          </p>
-        </div>
+
       </div>
     </div>
   );
 }
+
+export default MobileTracker;

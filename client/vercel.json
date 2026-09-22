@@ -1,0 +1,8 @@
+{
+  "redirects": [
+    { "source": "/", "destination": "/tracker", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
