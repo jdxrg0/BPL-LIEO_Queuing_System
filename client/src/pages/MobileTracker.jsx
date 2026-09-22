@@ -76,6 +76,22 @@ const MobileTracker = () => {
     };
   }, []);
 
+  // Keep search result in sync with serving tickets
+  // This ensures that if Firebase or Polling detects the ticket is now serving,
+  // the search result card updates automatically (not just the LAN fast-path).
+  useEffect(() => {
+    if (myTicketResult && myTicketResult.status !== 'SERVING') {
+      const isNowServing = servingTickets.find(t => t.number === myTicketResult.number);
+      if (isNowServing) {
+        setMyTicketResult(prev => ({ 
+          ...prev, 
+          status: 'SERVING', 
+          counterId: isNowServing.counterId 
+        }));
+      }
+    }
+  }, [servingTickets, myTicketResult]);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTicket.trim()) return;
