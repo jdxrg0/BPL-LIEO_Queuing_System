@@ -1,5 +1,6 @@
 {
-  "installCommand": "npm install && npm rebuild esbuild",
+  "installCommand": "npm install --ignore-scripts=false",
+  "buildCommand": "npx vite build",
   "redirects": [
     { "source": "/", "destination": "/tracker", "permanent": false }
   ],
