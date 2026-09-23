@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Search, MonitorPlay, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
 
@@ -378,31 +379,39 @@ const MobileTracker = () => {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {servingTickets.map((ticket) => (
-                <div 
-                  key={ticket.id} 
-                  className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 relative ${
-                    flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 animate-fly-pop' : 'bg-surface border-border'
-                  }`}
-                >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-2xl font-black m-0 text-text-main">
-                        {ticket.number}
-                      </h4>
-                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${getPriorityColor(ticket.priorityType)}`}>
-                        {ticket.priorityType || 'REG'}
-                      </span>
+              <AnimatePresence mode="popLayout">
+                {servingTickets.map((ticket) => (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    key={ticket.id} 
+                    className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 relative ${
+                      flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 animate-fly-pop' : 'bg-surface border-border'
+                    }`}
+                    style={{ zIndex: flashingTicketId === ticket.id?.toString() ? 50 : 1 }}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-2xl font-black m-0 text-text-main">
+                          {ticket.number}
+                        </h4>
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${getPriorityColor(ticket.priorityType)}`}>
+                          {ticket.priorityType || 'REG'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right flex flex-col items-end">
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest m-0 mb-0.5">Counter</p>
-                    <div className="bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm">
-                      {ticket.counterId || '?'}
+                    <div className="text-right flex flex-col items-end">
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest m-0 mb-0.5">Counter</p>
+                      <div className="bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm">
+                        {ticket.counterId || '?'}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>
