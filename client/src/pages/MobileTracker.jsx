@@ -323,12 +323,18 @@ const MobileTracker = () => {
             // Temporarily set peopleAhead to 0 until the waitQ snapshot fires
             setMyTicketResult(prev => ({ ...t, peopleAhead: prev?.peopleAhead || 0 }));
           } else {
-            // Ticket is SERVING
+            // Ticket is SERVING or other status
             if (unsubscribeWaitQRef.current) {
               unsubscribeWaitQRef.current();
               unsubscribeWaitQRef.current = null;
             }
-            setMyTicketResult(t);
+            setMyTicketResult(prev => {
+              // Only trigger the animation if the ticket transitioned from WAITING to SERVING while we were watching it
+              if (prev && prev.status === 'WAITING' && t.status === 'SERVING') {
+                triggerFlash(t.id.toString());
+              }
+              return t;
+            });
           }
         }
       }, (err) => {
