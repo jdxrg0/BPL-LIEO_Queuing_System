@@ -406,9 +406,9 @@ const MobileTracker = () => {
               <button 
                 type="button" 
                 onClick={() => setDateMode('custom')}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'custom' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold whitespace-nowrap transition-all shadow-sm ${dateMode === 'custom' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
               >
-                Custom Date
+                Custom
               </button>
               
               {dateMode === 'custom' && (
