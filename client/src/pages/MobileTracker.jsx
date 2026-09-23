@@ -305,8 +305,8 @@ const MobileTracker = () => {
                 {myTicketResult.error}
               </div>
             ) : (
-              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-all duration-300 ${
-                flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 scale-[1.02]' :
+              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-all duration-300 relative ${
+                flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 animate-fly-pop' :
                 myTicketResult.status === 'SERVING' 
                   ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
                   : 'bg-surface border-border'
@@ -381,8 +381,8 @@ const MobileTracker = () => {
               {servingTickets.map((ticket) => (
                 <div 
                   key={ticket.id} 
-                  className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 ${
-                    flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 scale-[1.02]' : 'bg-surface border-border'
+                  className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 relative ${
+                    flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 animate-fly-pop' : 'bg-surface border-border'
                   }`}
                 >
                   <div className="flex flex-col gap-1">

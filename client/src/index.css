@@ -119,3 +119,15 @@ a {
 .glow-indigo:hover { border-color: #4f46e5; }
 .glow-rose { --glow-color: rgba(225, 29, 72, 0.35); }
 .glow-rose:hover { border-color: #e11d48; }
+
+/* Recall Flashing & Fly Pop Animation */
+@keyframes flyPop {
+  0% { transform: scale(1) translateY(0); z-index: 50; }
+  25% { transform: scale(1.08) translateY(-15px); z-index: 50; box-shadow: var(--shadow-float), var(--shadow-glow); }
+  75% { transform: scale(1.08) translateY(-15px); z-index: 50; box-shadow: var(--shadow-float), var(--shadow-glow); }
+  100% { transform: scale(1) translateY(0); z-index: 1; }
+}
+
+.animate-fly-pop {
+  animation: flyPop 4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
