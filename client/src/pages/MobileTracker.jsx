@@ -329,9 +329,18 @@ const MobileTracker = () => {
               unsubscribeWaitQRef.current = null;
             }
             setMyTicketResult(prev => {
-              // Only trigger the animation if the ticket transitioned from WAITING to SERVING while we were watching it
+              // Trigger the animation if the ticket transitioned from WAITING to SERVING
               if (prev && prev.status === 'WAITING' && t.status === 'SERVING') {
                 triggerFlash(t.id.toString());
+              }
+              // Trigger the animation if the ticket was ALREADY SERVING but got recalled (updatedAt changed)
+              else if (prev && prev.status === 'SERVING' && t.status === 'SERVING') {
+                const prevTime = prev.updatedAt?.seconds || 0;
+                const newTime = t.updatedAt?.seconds || 0;
+                // If the new time is strictly greater, it was recalled by the admin
+                if (prevTime > 0 && newTime > prevTime) {
+                  triggerFlash(t.id.toString());
+                }
               }
               return t;
             });
