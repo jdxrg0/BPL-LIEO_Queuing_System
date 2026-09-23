@@ -306,12 +306,22 @@ const MobileTracker = () => {
                 {myTicketResult.error}
               </div>
             ) : (
-              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-all duration-300 relative ${
-                flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 animate-fly-pop' :
-                myTicketResult.status === 'SERVING' 
-                  ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
-                  : 'bg-surface border-border'
-              }`}>
+              <motion.div 
+                layout
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={
+                  flashingTicketId === myTicketResult.id?.toString()
+                    ? { opacity: 1, y: -15, scale: 1.05, zIndex: 50, boxShadow: "0 10px 40px -10px rgba(16, 185, 129, 0.4)" }
+                    : { opacity: 1, y: 0, scale: 1, zIndex: 1, boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)" }
+                }
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-colors duration-300 relative ${
+                  flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50' :
+                  myTicketResult.status === 'SERVING' 
+                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
+                    : 'bg-surface border-border'
+                }`}
+              >
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border mb-3 ${getPriorityColor(myTicketResult.priorityType)}`}>
                   {myTicketResult.priorityType || 'REGULAR'}
                 </span>
@@ -362,8 +372,8 @@ const MobileTracker = () => {
                     Your transaction was put on hold. Please wait for further instructions from the staff.
                   </div>
                 )}
-              </div>
-            )}
+                </motion.div>
+              )}
           </div>
         )}
 
@@ -384,14 +394,17 @@ const MobileTracker = () => {
                   <motion.div 
                     layout
                     initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    animate={
+                      flashingTicketId === ticket.id?.toString()
+                        ? { opacity: 1, y: -15, scale: 1.05, zIndex: 50, boxShadow: "0 10px 40px -10px rgba(16, 185, 129, 0.4)" }
+                        : { opacity: 1, y: 0, scale: 1, zIndex: 1, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }
+                    }
                     exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     key={ticket.id} 
-                    className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 relative ${
-                      flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 animate-fly-pop' : 'bg-surface border-border'
+                    className={`border rounded-xl p-4 flex justify-between items-center w-full transition-colors duration-300 relative ${
+                      flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50' : 'bg-surface border-border'
                     }`}
-                    style={{ zIndex: flashingTicketId === ticket.id?.toString() ? 50 : 1 }}
                   >
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
