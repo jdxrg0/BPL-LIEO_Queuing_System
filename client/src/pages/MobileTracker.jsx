@@ -622,9 +622,26 @@ const MobileTracker = () => {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (AudioContext) audioCtxRef.current = new AudioContext();
           }
-          if (!soundEnabled && audioCtxRef.current?.state === 'suspended') {
-            audioCtxRef.current.resume();
+          
+          const ctx = audioCtxRef.current;
+          if (ctx) {
+            if (ctx.state === 'suspended') {
+              ctx.resume();
+            }
+            // Play a silent sound to permanently unlock audio on strict mobile browsers (Vercel deployment)
+            try {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              gain.gain.value = 0; // completely silent
+              osc.start();
+              osc.stop(ctx.currentTime + 0.1);
+            } catch (err) {
+              console.warn("Could not unlock audio:", err);
+            }
           }
+          
           const newState = !soundEnabled;
           setSoundEnabled(newState);
           soundEnabledRef.current = newState;
