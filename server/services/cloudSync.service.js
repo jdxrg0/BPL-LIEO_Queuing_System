@@ -154,16 +154,17 @@ const clearCloudDatabase = async () => {
 
 /**
  * Sync branding settings (logo, website name) to Firebase.
- * This allows the public Vercel tracker to display the correct favicon and title
- * without needing access to the local backend API.
+ * Stored in `live_tickets/__settings__` so it shares the same security rules
+ * as the ticket data (which already allows public reads from Vercel).
  */
 const syncSettings = async (settings) => {
   if (!db) return;
 
   try {
-    await db.collection('app_config').doc('settings').set({
+    await db.collection('live_tickets').doc('__settings__').set({
       logoBase64: settings.logoBase64 || '',
       websiteName: settings.websiteName || 'BPLO Queuing System',
+      _type: 'settings', // marker to distinguish from real tickets
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     console.log('Cloud Sync: Synced branding settings to Firebase.');
