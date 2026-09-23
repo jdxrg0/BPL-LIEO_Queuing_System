@@ -46,7 +46,7 @@ export default function StaffDashboard({ user }) {
   const activeCounterId = user?.counterId;
   const activeCounterName = user?.counter?.name || 'Unknown Window';
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (retryCount = 0) => {
     try {
       const [servicesData, queueData, servingData, postponedData, priorityGroupsData] = await Promise.all([
         api.getServices(),
@@ -61,7 +61,10 @@ export default function StaffDashboard({ user }) {
       setPostponedTickets(postponedData);
       setPriorityGroups(priorityGroupsData);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch failed, retrying...', err);
+      if (retryCount < 3) {
+        setTimeout(() => fetchRef.current(retryCount + 1), 1500);
+      }
     }
   };
 
