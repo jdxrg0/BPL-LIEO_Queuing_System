@@ -227,8 +227,8 @@ const createTicket = async (req, res) => {
       await autoBalanceCounters(null, null);
     }
 
-    // Sync to Cloud for Live Tracker
-    await syncTicket(ticket);
+    // Sync to Cloud for Live Tracker (Non-blocking)
+    syncTicket(ticket);
 
     res.json(ticket);
   } catch (error) {
@@ -243,8 +243,8 @@ const deleteTicket = async (req, res) => {
     socketConfig.getIo().emit('ticketDeleted', { id: parseInt(id) });
     notifyApproachingTickets(ticket.serviceId);
     
-    // Remove from Cloud
-    await removeTicket(parseInt(id));
+    // Remove from Cloud (Non-blocking)
+    removeTicket(parseInt(id));
     
     res.json({ success: true });
   } catch (err) {
@@ -289,8 +289,8 @@ const callTicket = async (req, res) => {
       await autoBalanceCounters(null, null);
     }
 
-    // Sync to Cloud
-    await syncTicket(ticket);
+    // Sync to Cloud (Non-blocking)
+    syncTicket(ticket);
 
     res.json(ticket);
     
@@ -323,7 +323,7 @@ const updateTicketStatus = async (req, res) => {
 
     // Cloud Sync Logic
     // We now sync terminal states to Firebase so the Live Tracker can display "NO SHOW" or "COMPLETED"
-    await syncTicket(ticket);
+    syncTicket(ticket);
 
     res.json(ticket);
 
