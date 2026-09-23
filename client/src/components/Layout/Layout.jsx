@@ -82,24 +82,36 @@ export default function Layout({ user, onLogout }) {
     return () => bc.close();
   }, []);
 
+  const fetchLayoutData = async (retryCount = 0) => {
+    try {
+      await Promise.all([
+        api.getServices().then(setServices),
+        api.getSettings().then(s => {
+          setSettings(s);
+          setSettingsForm({ 
+            websiteName: s.websiteName || '', 
+            logoBase64: s.logoBase64 || '', 
+            autoBalanceThreshold: s.autoBalanceThreshold || 15,
+            zipperRatio: s.zipperRatio || 3,
+            agingRate: s.agingRate || 0.1,
+            skipLimit: s.skipLimit || 5
+          });
+        }),
+        api.getPriorityGroups().then(setPriorityGroups)
+      ]);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Layout fetch failed, retrying...', err);
+      if (retryCount < 3) {
+        setTimeout(() => fetchLayoutData(retryCount + 1), 1500);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
-    Promise.all([
-      api.getServices().then(setServices),
-      api.getSettings().then(s => {
-        setSettings(s);
-        setSettingsForm({ 
-          websiteName: s.websiteName || '', 
-          logoBase64: s.logoBase64 || '', 
-          autoBalanceThreshold: s.autoBalanceThreshold || 15,
-          zipperRatio: s.zipperRatio || 3,
-          agingRate: s.agingRate || 0.1,
-          skipLimit: s.skipLimit || 5
-        });
-      }),
-      api.getPriorityGroups().then(setPriorityGroups)
-    ])
-    .catch(console.error)
-    .finally(() => setIsLoading(false));
+    fetchLayoutData();
 
     socket.on('settingsUpdated', (s) => {
       setSettings(s);
