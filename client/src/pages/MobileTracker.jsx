@@ -11,6 +11,7 @@ const MobileTracker = () => {
   const [myTicketResult, setMyTicketResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [websiteName, setWebsiteName] = useState('BPLO');
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -113,7 +114,10 @@ const MobileTracker = () => {
         if (res.ok) {
           const data = await res.json();
           if (data.logoBase64) setFavicon(data.logoBase64);
-          if (data.websiteName) document.title = `${data.websiteName} | Live Tracker`;
+          if (data.websiteName) {
+            document.title = `${data.websiteName} | Live Tracker`;
+            setWebsiteName(data.websiteName);
+          }
           return; // Success — no need to hit Firebase
         }
       } catch (_) { /* Local API unreachable (Vercel) — fall through to Firebase */ }
@@ -124,7 +128,10 @@ const MobileTracker = () => {
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
           if (data.logoBase64) setFavicon(data.logoBase64);
-          if (data.websiteName) document.title = `${data.websiteName} | Live Tracker`;
+          if (data.websiteName) {
+            document.title = `${data.websiteName} | Live Tracker`;
+            setWebsiteName(data.websiteName);
+          }
         }
       } catch (err) {
         console.warn('Could not fetch branding:', err.message);
@@ -321,7 +328,7 @@ const MobileTracker = () => {
         {/* Simple Header */}
         <div className="text-center px-2">
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight m-0 text-text-main">
-            BPLO Live Tracker
+            {websiteName} Live Tracker
           </h1>
           <p className="text-sm text-text-muted mt-1 m-0">
             Check your queue status
