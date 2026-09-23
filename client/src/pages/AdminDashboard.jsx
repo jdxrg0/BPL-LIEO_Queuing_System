@@ -19,6 +19,11 @@ export default function AdminDashboard() {
   // Selected user for EditUserModal
   const [editingUser, setEditingUser] = useState(null);
 
+  useEffect(() => {
+    const siteName = window.__SITE_NAME__ || 'BPLO Queuing System';
+    document.title = `${siteName} | Admin Dashboard`;
+  }, []);
+
   // Custom Popup Window instead of browser alerts
   const [popupMessage, setPopupMessage] = useState(null); 
   const showPopup = (title, message, type = 'error') => {

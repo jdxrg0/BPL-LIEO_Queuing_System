@@ -20,6 +20,11 @@ export default function StaffDashboard({ user }) {
   const scrollContainerRef = useRef(null);
 
   useEffect(() => {
+    const siteName = window.__SITE_NAME__ || 'BPLO Queuing System';
+    document.title = `${siteName} | Staff Dashboard`;
+  }, []);
+
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 

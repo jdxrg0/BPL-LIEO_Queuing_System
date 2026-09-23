@@ -12,6 +12,11 @@ export default function Login({ onLogin }) {
     api.getSettings().then(setSettings).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    const siteName = settings?.websiteName || window.__SITE_NAME__ || 'BPLO Queuing System';
+    document.title = `${siteName} | Login`;
+  }, [settings]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');

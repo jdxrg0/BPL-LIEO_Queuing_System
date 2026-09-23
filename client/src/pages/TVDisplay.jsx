@@ -114,7 +114,7 @@ export default function TVDisplay() {
       link.href = settings.logoBase64;
     }
     if (settings?.websiteName) {
-      document.title = settings.websiteName;
+      document.title = `${settings.websiteName} | Display`;
     }
   }, [settings?.logoBase64, settings?.websiteName]);
 

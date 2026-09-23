@@ -135,7 +135,7 @@ export default function Layout({ user, onLogout }) {
       link.href = settings.logoBase64;
     }
     if (settings?.websiteName) {
-      document.title = settings.websiteName;
+      window.__SITE_NAME__ = settings.websiteName;
     }
   }, [settings?.logoBase64, settings?.websiteName]);
 

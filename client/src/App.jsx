@@ -40,7 +40,7 @@ function App() {
     }
   }, []);
 
-  // Global favicon & title: runs once on mount for ALL pages (Login, Tracker, etc.)
+  // Global favicon & site name: runs once on mount for ALL pages (Login, Tracker, etc.)
   useEffect(() => {
     api.getSettings().then(settings => {
       if (settings?.logoBase64) {
@@ -53,6 +53,8 @@ function App() {
         link.href = settings.logoBase64;
       }
       if (settings?.websiteName) {
+        window.__SITE_NAME__ = settings.websiteName;
+        // Set a default title; individual pages will override with their page name
         document.title = settings.websiteName;
       }
     }).catch(() => {}); // Silently fail if API is unreachable (e.g. Vercel tracker)

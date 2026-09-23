@@ -31,7 +31,7 @@ const MobileTracker = () => {
             link.href = data.logoBase64;
           }
           if (data.websiteName) {
-            document.title = data.websiteName + ' - Live Tracker';
+            document.title = data.websiteName + ' | Live Tracker';
           }
         }
       } catch (err) {
