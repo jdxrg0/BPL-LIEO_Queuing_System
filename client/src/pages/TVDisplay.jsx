@@ -141,7 +141,7 @@ export default function TVDisplay() {
     );
   }
 
-  const rowCount = Math.max(4, Math.ceil(displayTickets.length / 2));
+  const rowCount = Math.max(1, Math.ceil(displayTickets.length / 2));
 
   return (
     <div className="bg-red-600 h-screen flex flex-col overflow-hidden">

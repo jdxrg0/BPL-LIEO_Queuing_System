@@ -39,7 +39,13 @@ const getSettings = async (req, res) => {
     if (!settings) {
       settings = await prisma.settings.create({ data: { id: 1 } });
     }
-    res.json(settings);
+    
+    const activeServices = await prisma.service.findMany({ 
+      where: { isActive: true },
+      select: { prefix: true, name: true }
+    });
+    
+    res.json({ ...settings, services: activeServices });
   } catch (err) {
     console.error("Error fetching settings:", err);
     res.status(500).json({ error: 'Server error' });
