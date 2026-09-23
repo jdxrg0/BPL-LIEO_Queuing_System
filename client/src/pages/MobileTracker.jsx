@@ -115,7 +115,7 @@ const MobileTracker = () => {
           const data = await res.json();
           if (data.logoBase64) setFavicon(data.logoBase64);
           if (data.websiteName) {
-            document.title = `${data.websiteName} | Live Tracker`;
+            document.title = `${data.websiteName} | Ticket Tracker`;
             setWebsiteName(data.websiteName);
           }
           return; // Success — no need to hit Firebase
@@ -129,7 +129,7 @@ const MobileTracker = () => {
           const data = settingsDoc.data();
           if (data.logoBase64) setFavicon(data.logoBase64);
           if (data.websiteName) {
-            document.title = `${data.websiteName} | Live Tracker`;
+            document.title = `${data.websiteName} | Ticket Tracker`;
             setWebsiteName(data.websiteName);
           }
         }
@@ -328,7 +328,7 @@ const MobileTracker = () => {
         {/* Simple Header */}
         <div className="text-center px-2">
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight m-0 text-text-main">
-            {websiteName} Live Tracker
+            {websiteName} Ticket Tracker
           </h1>
           <p className="text-sm text-text-muted mt-1 m-0">
             Check your queue status
