@@ -5,6 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
 
+const getLocalDateString = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const MobileTracker = () => {
   const [servingTickets, setServingTickets] = useState([]);
   const [searchTicket, setSearchTicket] = useState('');
@@ -14,7 +21,7 @@ const MobileTracker = () => {
   const [websiteName, setWebsiteName] = useState('BPLO');
   const [services, setServices] = useState([]);
   const [selectedServicePrefix, setSelectedServicePrefix] = useState('');
-  const [ticketDate, setTicketDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ticketDate, setTicketDate] = useState(getLocalDateString(new Date()));
   const [dateMode, setDateMode] = useState('today');
   const [ticketNumberInput, setTicketNumberInput] = useState('');
   const [error, setError] = useState(null);
@@ -386,7 +393,7 @@ const MobileTracker = () => {
                 type="button" 
                 onClick={() => {
                   const y = new Date(); y.setDate(y.getDate() - 1);
-                  setTicketDate(y.toISOString().split('T')[0]);
+                  setTicketDate(getLocalDateString(y));
                   setDateMode('yesterday');
                 }}
                 className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'yesterday' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
@@ -396,7 +403,7 @@ const MobileTracker = () => {
               <button 
                 type="button" 
                 onClick={() => {
-                  setTicketDate(new Date().toISOString().split('T')[0]);
+                  setTicketDate(getLocalDateString(new Date()));
                   setDateMode('today');
                 }}
                 className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'today' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
