@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, MonitorPlay, Users } from 'lucide-react';
+import { Search, MonitorPlay, Users, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
@@ -13,6 +13,8 @@ const MobileTracker = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabledRef = useRef(false);
   const unsubscribeSearchRef = useRef(null);
   const unsubscribeWaitQRef = useRef(null);
   const isInitialLoad = useRef(true);
@@ -31,6 +33,8 @@ const MobileTracker = () => {
       if (audioCtxRef.current?.state === 'suspended') {
         audioCtxRef.current.resume();
       }
+      setSoundEnabled(true);
+      soundEnabledRef.current = true;
       // Remove listeners after first interaction
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('touchstart', unlockAudio);
@@ -47,6 +51,7 @@ const MobileTracker = () => {
 
   // Gentle beep for notifications
   const playBeep = () => {
+    if (!soundEnabledRef.current) return;
     try {
       if (!audioCtxRef.current) return;
       
@@ -76,7 +81,7 @@ const MobileTracker = () => {
   const triggerFlash = (id) => {
     setFlashingTicketId(id);
     playBeep();
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    if (soundEnabledRef.current && navigator.vibrate) navigator.vibrate([200, 100, 200]);
     setTimeout(() => setFlashingTicketId(null), 4000);
   };
 
@@ -464,6 +469,31 @@ const MobileTracker = () => {
         </div>
 
       </div>
+
+      {/* Floating Sound Toggle Button */}
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!audioCtxRef.current) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) audioCtxRef.current = new AudioContext();
+          }
+          if (!soundEnabled && audioCtxRef.current?.state === 'suspended') {
+            audioCtxRef.current.resume();
+          }
+          const newState = !soundEnabled;
+          setSoundEnabled(newState);
+          soundEnabledRef.current = newState;
+        }}
+        className={`fixed bottom-6 right-6 p-4 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center justify-center ${
+          soundEnabled 
+            ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+            : 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse'
+        }`}
+        aria-label="Toggle Sound"
+      >
+        {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+      </button>
     </div>
   );
 }
