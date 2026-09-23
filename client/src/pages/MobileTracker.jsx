@@ -32,6 +32,11 @@ const MobileTracker = () => {
   const unsubscribeWaitQRef = useRef(null);
   const isInitialLoad = useRef(true);
   const flashTimeoutRef = useRef(null);
+  const myTicketResultRef = useRef(null);
+  
+  useEffect(() => {
+    myTicketResultRef.current = myTicketResult;
+  }, [myTicketResult]);
 
   const audioCtxRef = useRef(null);
 
@@ -176,7 +181,10 @@ const MobileTracker = () => {
         if (!isInitialLoad.current) {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added' || change.type === 'modified') {
-              triggerFlash(change.doc.id);
+              const currentSearched = myTicketResultRef.current;
+              if (currentSearched && currentSearched.id === change.doc.id) {
+                triggerFlash(change.doc.id);
+              }
             }
           });
         }
@@ -216,13 +224,16 @@ const MobileTracker = () => {
         return [ticket, ...filtered];
       });
       
-      setMyTicketResult(prev => {
-        if (prev && prev.number === ticket.number) {
-          return { ...prev, status: 'SERVING', counterId: ticket.counterId };
-        }
-        return prev;
-      });
-      triggerFlash(ticket.id.toString());
+      const currentSearched = myTicketResultRef.current;
+      if (currentSearched && currentSearched.number === ticket.number) {
+        setMyTicketResult(prev => {
+          if (prev && prev.number === ticket.number) {
+            return { ...prev, status: 'SERVING', counterId: ticket.counterId };
+          }
+          return prev;
+        });
+        triggerFlash(ticket.id.toString());
+      }
     };
 
     socket.on('ticketCalled', handleTicketCalled);
