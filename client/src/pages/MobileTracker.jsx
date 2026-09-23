@@ -416,9 +416,7 @@ const MobileTracker = () => {
           </div>
           <div className="flex gap-2 w-full">
             <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
-              <span className="text-slate-400 mr-1 select-none text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                {selectedServicePrefix || '---'}-{ticketDate ? `${ticketDate.split('-')[1]}${ticketDate.split('-')[2]}${ticketDate.split('-')[0].slice(-2)}` : '------'}-
-              </span>
+
               <input 
                 type="number" 
                 className="w-full bg-transparent outline-none py-3 font-black text-lg"
