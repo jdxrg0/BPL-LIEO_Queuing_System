@@ -161,7 +161,7 @@ const syncSettings = async (settings) => {
   if (!db) return;
 
   try {
-    await db.collection('live_tickets').doc('__settings__').set({
+    await db.collection('live_tickets').doc('app_settings').set({
       logoBase64: settings.logoBase64 || '',
       websiteName: settings.websiteName || 'BPLO Queuing System',
       _type: 'settings', // marker to distinguish from real tickets

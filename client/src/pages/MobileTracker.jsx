@@ -40,7 +40,7 @@ const MobileTracker = () => {
 
       // Fall back to Firebase (works on Vercel)
       try {
-        const settingsDoc = await getDoc(doc(db, 'live_tickets', '__settings__'));
+        const settingsDoc = await getDoc(doc(db, 'live_tickets', 'app_settings'));
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
           if (data.logoBase64) setFavicon(data.logoBase64);
