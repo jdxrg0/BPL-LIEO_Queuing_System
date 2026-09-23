@@ -207,7 +207,8 @@ const MobileTracker = () => {
             unsubscribeWaitQRef.current = null;
           }
         } else {
-          const t = querySnapshot.docs[0].data();
+          const docSnap = querySnapshot.docs[0];
+          const t = { id: docSnap.id, ...docSnap.data() };
           
           if (t.status === 'WAITING') {
             // Subscribe to the WAITING queue to dynamically calculate people ahead
