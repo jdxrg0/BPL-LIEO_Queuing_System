@@ -411,17 +411,25 @@ const MobileTracker = () => {
                 Custom
               </button>
               
-              {dateMode === 'custom' && (
-                <motion.input
-                  initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  type="date"
-                  value={ticketDate}
-                  onChange={(e) => setTicketDate(e.target.value)}
-                  className="w-full sm:w-auto bg-surface border border-border rounded-xl px-4 py-2 text-text-main text-sm font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm mt-1 sm:mt-0"
-                  required
-                />
-              )}
+              <AnimatePresence>
+                {dateMode === 'custom' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                    className="w-full sm:w-auto overflow-hidden mt-1 sm:mt-0"
+                  >
+                    <input
+                      type="date"
+                      value={ticketDate}
+                      onChange={(e) => setTicketDate(e.target.value)}
+                      className="w-full sm:w-auto bg-surface border border-border rounded-xl px-4 py-2 text-text-main text-sm font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm"
+                      required
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
