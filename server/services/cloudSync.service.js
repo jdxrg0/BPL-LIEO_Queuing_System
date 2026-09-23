@@ -94,8 +94,41 @@ const catchUpSync = async (prismaInstance = prisma) => {
     }
     
     console.log(`Cloud Sync: Catch-up complete. Synced ${activeTickets.length} active tickets.`);
+    
+    // Run automated cleanup of tickets older than 24h
+    await autoCleanupOldCloudTickets();
   } catch (error) {
     console.warn('Cloud Sync: Catch-up failed (possibly offline).', error.message);
+  }
+};
+
+/**
+ * Automatically clean up Firebase tickets that are older than 24 hours.
+ * This ensures the free database never gets full, without the user having to do anything.
+ */
+const autoCleanupOldCloudTickets = async () => {
+  if (!db) return;
+  try {
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+    
+    // Convert to Firestore Timestamp
+    const firestoreTimestamp = require('firebase-admin/firestore').Timestamp.fromDate(yesterday);
+
+    const snapshot = await db.collection('live_tickets')
+      .where('updatedAt', '<', firestoreTimestamp)
+      .get();
+      
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    console.log(`Cloud Sync: Automatically cleaned up ${snapshot.docs.length} old tickets from Firebase.`);
+  } catch (error) {
+    console.warn('Cloud Sync Error: Auto-cleanup failed', error.message);
   }
 };
 

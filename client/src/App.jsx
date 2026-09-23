@@ -40,6 +40,24 @@ function App() {
     }
   }, []);
 
+  // Global favicon & title: runs once on mount for ALL pages (Login, Tracker, etc.)
+  useEffect(() => {
+    api.getSettings().then(settings => {
+      if (settings?.logoBase64) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = settings.logoBase64;
+      }
+      if (settings?.websiteName) {
+        document.title = settings.websiteName;
+      }
+    }).catch(() => {}); // Silently fail if API is unreachable (e.g. Vercel tracker)
+  }, []);
+
   // Listen for real-time user updates (e.g. Admin changes permissions)
   useEffect(() => {
     const handleUserUpdated = (updatedUser) => {
