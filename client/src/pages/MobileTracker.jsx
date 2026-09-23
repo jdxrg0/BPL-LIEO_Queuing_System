@@ -315,7 +315,7 @@ const MobileTracker = () => {
                     : { opacity: 1, y: 0, scale: 1, zIndex: 1 }
                 }
                 transition={{ type: "tween", ease: "easeOut", duration: 0.3 }}
-                className={`p-6 rounded-2xl border flex flex-col items-center text-center w-full transition-colors duration-300 relative ${
+                className={`p-5 rounded-2xl border flex flex-col items-center text-center w-full transition-colors duration-300 relative ${
                   flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 shadow-lg' :
                   myTicketResult.status === 'SERVING' 
                     ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 shadow-sm' 
@@ -326,7 +326,7 @@ const MobileTracker = () => {
                   {myTicketResult.priorityType || 'REGULAR'}
                 </span>
                 
-                <h2 className="text-5xl font-black tracking-tighter m-0 mb-1 text-text-main">
+                <h2 className="text-4xl font-black tracking-tighter m-0 mb-1 text-text-main">
                   {myTicketResult.number}
                 </h2>
                 
@@ -388,7 +388,7 @@ const MobileTracker = () => {
               No tickets currently serving.
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <AnimatePresence>
                 {servingTickets.map((ticket) => (
                   <motion.div 
@@ -402,13 +402,13 @@ const MobileTracker = () => {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ type: "tween", ease: "easeOut", duration: 0.3 }}
                     key={ticket.id} 
-                    className={`border rounded-xl p-4 flex justify-between items-center w-full transition-colors duration-300 relative ${
+                    className={`border rounded-xl p-3 flex justify-between items-center w-full transition-colors duration-300 relative ${
                       flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 shadow-lg' : 'bg-surface border-border shadow-sm'
                     }`}
                   >
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-2xl font-black m-0 text-text-main">
+                        <h4 className="text-xl font-black m-0 text-text-main">
                           {ticket.number}
                         </h4>
                         <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${getPriorityColor(ticket.priorityType)}`}>
@@ -418,7 +418,7 @@ const MobileTracker = () => {
                     </div>
                     <div className="text-right flex flex-col items-end">
                       <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest m-0 mb-0.5">Counter</p>
-                      <div className="bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 w-8 h-8 rounded-lg flex items-center justify-center font-black text-lg shadow-sm">
+                      <div className="bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 w-7 h-7 rounded-lg flex items-center justify-center font-black text-base shadow-sm">
                         {ticket.counterId || '?'}
                       </div>
                     </div>
