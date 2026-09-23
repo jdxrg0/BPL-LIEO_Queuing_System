@@ -54,8 +54,6 @@ function App() {
       }
       if (settings?.websiteName) {
         window.__SITE_NAME__ = settings.websiteName;
-        // Set a default title; individual pages will override with their page name
-        document.title = settings.websiteName;
       }
     }).catch(() => {}); // Silently fail if API is unreachable (e.g. Vercel tracker)
   }, []);

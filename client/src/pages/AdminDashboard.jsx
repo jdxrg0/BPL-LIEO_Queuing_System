@@ -20,8 +20,11 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
-    const siteName = window.__SITE_NAME__ || 'BPLO Queuing System';
-    document.title = `${siteName} | Admin Dashboard`;
+    api.getSettings().then(s => {
+      if (s?.websiteName) document.title = `${s.websiteName} | Admin Dashboard`;
+    }).catch(() => {
+      document.title = 'BPLO Queuing System | Admin Dashboard';
+    });
   }, []);
 
   // Custom Popup Window instead of browser alerts

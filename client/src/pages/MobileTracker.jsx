@@ -14,28 +14,40 @@ const MobileTracker = () => {
   const unsubscribeSearchRef = useRef(null);
   const unsubscribeWaitQRef = useRef(null);
 
-  // Fetch branding from Firebase and set favicon + title (works on Vercel)
+  // Fetch branding: try local API first (LAN), fall back to Firebase (Vercel)
   useEffect(() => {
+    const setFavicon = (logoBase64) => {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = logoBase64;
+    };
+
     const fetchBranding = async () => {
+      // Try local API first (works on LAN)
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logoBase64) setFavicon(data.logoBase64);
+          if (data.websiteName) document.title = `${data.websiteName} | Live Tracker`;
+          return; // Success — no need to hit Firebase
+        }
+      } catch (_) { /* Local API unreachable (Vercel) — fall through to Firebase */ }
+
+      // Fall back to Firebase (works on Vercel)
       try {
         const settingsDoc = await getDoc(doc(db, 'app_config', 'settings'));
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
-          if (data.logoBase64) {
-            let link = document.querySelector("link[rel~='icon']");
-            if (!link) {
-              link = document.createElement('link');
-              link.rel = 'icon';
-              document.head.appendChild(link);
-            }
-            link.href = data.logoBase64;
-          }
-          if (data.websiteName) {
-            document.title = data.websiteName + ' | Live Tracker';
-          }
+          if (data.logoBase64) setFavicon(data.logoBase64);
+          if (data.websiteName) document.title = `${data.websiteName} | Live Tracker`;
         }
       } catch (err) {
-        console.warn('Could not fetch branding from Firebase:', err.message);
+        console.warn('Could not fetch branding:', err.message);
       }
     };
     fetchBranding();
