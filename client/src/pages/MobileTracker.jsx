@@ -355,24 +355,26 @@ const MobileTracker = () => {
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="flex flex-col gap-6 w-full px-1 box-border">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest pl-1">
+          <div className="flex flex-col gap-2 mb-2">
+            <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest pl-1 mb-1">
               Step 1: Select Transaction
             </label>
-            <select
-              value={selectedServicePrefix}
-              onChange={(e) => setSelectedServicePrefix(e.target.value)}
-              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm appearance-none"
-              disabled={services.length === 0}
-            >
+            <div className="flex flex-col gap-2">
               {services.length === 0 ? (
-                <option value="">Loading transactions...</option>
+                <div className="text-sm text-text-muted px-2 py-3">Loading transactions...</div>
               ) : (
                 services.map(s => (
-                  <option key={s.prefix} value={s.prefix}>{s.name} ({s.prefix})</option>
+                  <button
+                    key={s.prefix}
+                    type="button"
+                    onClick={() => setSelectedServicePrefix(s.prefix)}
+                    className={`px-4 py-3 rounded-xl border text-sm font-bold transition-all shadow-sm text-left ${selectedServicePrefix === s.prefix ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                  >
+                    {s.name} <span className="font-normal opacity-70 ml-1">({s.prefix})</span>
+                  </button>
                 ))
               )}
-            </select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
