@@ -14,6 +14,7 @@ const MobileTracker = () => {
   const [websiteName, setWebsiteName] = useState('BPLO');
   const [services, setServices] = useState([]);
   const [selectedServicePrefix, setSelectedServicePrefix] = useState('');
+  const [ticketDate, setTicketDate] = useState(new Date().toISOString().split('T')[0]);
   const [ticketNumberInput, setTicketNumberInput] = useState('');
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
@@ -245,12 +246,11 @@ const MobileTracker = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!ticketNumberInput.trim() || !selectedServicePrefix) return;
+    if (!ticketNumberInput.trim() || !selectedServicePrefix || !ticketDate) return;
     
-    const today = new Date();
-    const dateStr = String(today.getMonth() + 1).padStart(2, '0') + 
-                    String(today.getDate()).padStart(2, '0') + 
-                    String(today.getFullYear()).slice(-2);
+    const parts = ticketDate.split('-');
+    if (parts.length !== 3) return;
+    const dateStr = parts[1] + parts[2] + parts[0].slice(-2);
     const fullTicketNumber = `${selectedServicePrefix}-${dateStr}-${ticketNumberInput.padStart(3, '0')}`;
     
     setIsSearching(true);
@@ -369,11 +369,18 @@ const MobileTracker = () => {
                 ))
               )}
             </select>
+            <input
+              type="date"
+              value={ticketDate}
+              onChange={(e) => setTicketDate(e.target.value)}
+              className="bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm shrink-0"
+              required
+            />
           </div>
           <div className="flex gap-2 w-full">
             <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
               <span className="text-slate-400 mr-1 select-none text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                {selectedServicePrefix || '---'}-{String(new Date().getMonth() + 1).padStart(2, '0') + String(new Date().getDate()).padStart(2, '0') + String(new Date().getFullYear()).slice(-2)}-
+                {selectedServicePrefix || '---'}-{ticketDate ? `${ticketDate.split('-')[1]}${ticketDate.split('-')[2]}${ticketDate.split('-')[0].slice(-2)}` : '------'}-
               </span>
               <input 
                 type="number" 
