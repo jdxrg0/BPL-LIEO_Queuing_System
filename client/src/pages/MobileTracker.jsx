@@ -11,8 +11,39 @@ const MobileTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [flashingTicketId, setFlashingTicketId] = useState(null);
   const unsubscribeSearchRef = useRef(null);
   const unsubscribeWaitQRef = useRef(null);
+  const isInitialLoad = useRef(true);
+
+  // Gentle beep for notifications
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch(e) { /* audio context not supported or user hasn't interacted */ }
+  };
+
+  const triggerFlash = (id) => {
+    setFlashingTicketId(id);
+    playBeep();
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    setTimeout(() => setFlashingTicketId(null), 4000);
+  };
 
   // Fetch branding: try local API first (LAN), fall back to Firebase (Vercel)
   useEffect(() => {
@@ -65,6 +96,15 @@ const MobileTracker = () => {
         tickets.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
         setServingTickets(tickets);
         setLoading(false);
+
+        if (!isInitialLoad.current) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added' || change.type === 'modified') {
+              triggerFlash(change.doc.id);
+            }
+          });
+        }
+        isInitialLoad.current = false;
       }, (err) => {
         console.error("Firebase error:", err);
         // Don't show error — polling fallback will handle it
@@ -106,6 +146,7 @@ const MobileTracker = () => {
         }
         return prev;
       });
+      triggerFlash(ticket.id.toString());
     };
 
     socket.on('ticketCalled', handleTicketCalled);
@@ -263,7 +304,8 @@ const MobileTracker = () => {
                 {myTicketResult.error}
               </div>
             ) : (
-              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full ${
+              <div className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-all duration-300 ${
+                flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 scale-[1.02]' :
                 myTicketResult.status === 'SERVING' 
                   ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
                   : 'bg-surface border-border'
@@ -336,7 +378,12 @@ const MobileTracker = () => {
           ) : (
             <div className="flex flex-col gap-3">
               {servingTickets.map((ticket) => (
-                <div key={ticket.id} className="bg-surface border border-border rounded-xl p-4 flex justify-between items-center shadow-sm w-full">
+                <div 
+                  key={ticket.id} 
+                  className={`border rounded-xl p-4 flex justify-between items-center shadow-sm w-full transition-all duration-300 ${
+                    flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 scale-[1.02]' : 'bg-surface border-border'
+                  }`}
+                >
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-2xl font-black m-0 text-text-main">
