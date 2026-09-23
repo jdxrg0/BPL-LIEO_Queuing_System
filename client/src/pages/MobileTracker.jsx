@@ -354,12 +354,15 @@ const MobileTracker = () => {
         </div>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex flex-col gap-3 w-full px-1 box-border">
-          <div className="flex flex-col sm:flex-row gap-2">
+        <form onSubmit={handleSearch} className="flex flex-col gap-6 w-full px-1 box-border">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest pl-1">
+              Step 1: Select Transaction
+            </label>
             <select
               value={selectedServicePrefix}
               onChange={(e) => setSelectedServicePrefix(e.target.value)}
-              className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm"
+              className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm appearance-none"
               disabled={services.length === 0}
             >
               {services.length === 0 ? (
@@ -372,68 +375,78 @@ const MobileTracker = () => {
             </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mt-1 mb-1">
-            <button 
-              type="button" 
-              onClick={() => {
-                const y = new Date(); y.setDate(y.getDate() - 1);
-                setTicketDate(y.toISOString().split('T')[0]);
-                setDateMode('yesterday');
-              }}
-              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'yesterday' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              Yesterday
-            </button>
-            <button 
-              type="button" 
-              onClick={() => {
-                setTicketDate(new Date().toISOString().split('T')[0]);
-                setDateMode('today');
-              }}
-              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'today' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              Today
-            </button>
-            <button 
-              type="button" 
-              onClick={() => setDateMode('custom')}
-              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'custom' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-            >
-              Custom Date
-            </button>
-            
-            {dateMode === 'custom' && (
-              <motion.input
-                initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                type="date"
-                value={ticketDate}
-                onChange={(e) => setTicketDate(e.target.value)}
-                className="bg-surface border border-border rounded-xl px-4 py-2 text-text-main text-sm font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm ml-auto"
-                required
-              />
-            )}
-          </div>
-          <div className="flex gap-2 w-full">
-            <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
-
-              <input 
-                type="number" 
-                className="w-full bg-transparent outline-none py-3 font-black text-lg"
-                placeholder="001" 
-                min="1"
-                max="999"
-                value={ticketNumberInput}
-                onChange={(e) => setTicketNumberInput(e.target.value)}
-              />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest pl-1">
+              Step 2: Date on Ticket
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => {
+                  const y = new Date(); y.setDate(y.getDate() - 1);
+                  setTicketDate(y.toISOString().split('T')[0]);
+                  setDateMode('yesterday');
+                }}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'yesterday' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              >
+                Yesterday
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setTicketDate(new Date().toISOString().split('T')[0]);
+                  setDateMode('today');
+                }}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'today' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              >
+                Today
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setDateMode('custom')}
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'custom' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+              >
+                Custom Date
+              </button>
+              
+              {dateMode === 'custom' && (
+                <motion.input
+                  initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  type="date"
+                  value={ticketDate}
+                  onChange={(e) => setTicketDate(e.target.value)}
+                  className="w-full sm:w-auto bg-surface border border-border rounded-xl px-4 py-2 text-text-main text-sm font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm mt-1 sm:mt-0"
+                  required
+                />
+              )}
             </div>
-            <button 
-              type="submit" 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-3 font-bold disabled:opacity-50 transition-colors flex items-center justify-center shadow-sm shrink-0"
-              disabled={isSearching || !ticketNumberInput.trim() || !selectedServicePrefix}
-            >
-              {isSearching ? <span className="animate-spin text-lg">↻</span> : <Search size={20}/>}
-            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest pl-1">
+              Step 3: Enter 3-Digit Ticket Number
+            </label>
+            <div className="flex gap-2 w-full">
+              <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
+                <span className="text-slate-400 select-none mr-2 text-sm font-black">N.O.</span>
+                <input 
+                  type="number" 
+                  className="w-full bg-transparent outline-none py-3 font-black text-lg"
+                  placeholder="e.g. 001" 
+                  min="1"
+                  max="999"
+                  value={ticketNumberInput}
+                  onChange={(e) => setTicketNumberInput(e.target.value)}
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold disabled:opacity-50 transition-colors flex items-center justify-center shadow-sm shrink-0"
+                disabled={isSearching || !ticketNumberInput.trim() || !selectedServicePrefix}
+              >
+                {isSearching ? <span className="animate-spin text-lg">↻</span> : <Search size={22}/>}
+              </button>
+            </div>
           </div>
         </form>
 
