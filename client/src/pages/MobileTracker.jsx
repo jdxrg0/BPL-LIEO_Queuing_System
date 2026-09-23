@@ -17,10 +17,44 @@ const MobileTracker = () => {
   const unsubscribeWaitQRef = useRef(null);
   const isInitialLoad = useRef(true);
 
+  const audioCtxRef = useRef(null);
+
+  // Unlock AudioContext on first interaction (required by mobile browsers)
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (!audioCtxRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtxRef.current = new AudioContext();
+        }
+      }
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      // Remove listeners after first interaction
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+
+    window.addEventListener('click', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio);
+
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
   // Gentle beep for notifications
   const playBeep = () => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtxRef.current) return;
+      
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume(); // Try to resume if it was suspended again
+      }
+
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
       osc.connect(gainNode);
@@ -36,7 +70,7 @@ const MobileTracker = () => {
       
       osc.start();
       osc.stop(ctx.currentTime + 0.5);
-    } catch(e) { /* audio context not supported or user hasn't interacted */ }
+    } catch(e) { console.error('Audio play failed:', e); }
   };
 
   const triggerFlash = (id) => {
