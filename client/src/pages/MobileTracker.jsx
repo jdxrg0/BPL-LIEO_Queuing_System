@@ -259,6 +259,7 @@ const MobileTracker = () => {
           status: 'SERVING', 
           counterId: isNowServing.counterId 
         }));
+        triggerFlash(isNowServing.id.toString());
       }
     }
   }, [servingTickets, myTicketResult]);
