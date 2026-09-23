@@ -392,6 +392,21 @@ const subscribeToPush = async (req, res) => {
   const { subscription } = req.body;
 
   try {
+    // SECURITY PATCH: Validate the subscription payload to prevent DoS database bloat injections
+    if (!subscription || typeof subscription !== 'object') {
+      return res.status(400).json({ error: 'Invalid subscription payload' });
+    }
+    
+    // Web-Push subscriptions must contain an endpoint URL and security keys
+    if (typeof subscription.endpoint !== 'string' || !subscription.keys || typeof subscription.keys.p256dh !== 'string' || typeof subscription.keys.auth !== 'string') {
+      return res.status(400).json({ error: 'Malformed push subscription object' });
+    }
+
+    // Limit endpoint string length to prevent massive string injections
+    if (subscription.endpoint.length > 2000) {
+      return res.status(400).json({ error: 'Subscription endpoint too long' });
+    }
+
     const ticket = await prisma.ticket.findFirst({ where: { number } });
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
