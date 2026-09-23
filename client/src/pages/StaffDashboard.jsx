@@ -15,7 +15,6 @@ export default function StaffDashboard({ user }) {
   const [showReturnsModal, setShowReturnsModal] = useState(false);
   const [popupMessage, setPopupMessage] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
-  const [isRecalling, setIsRecalling] = useState(false);
   const lastCaterPrefixRef = useRef(undefined);
   
   const scrollContainerRef = useRef(null);
@@ -144,12 +143,8 @@ export default function StaffDashboard({ user }) {
   };
 
   const handleRecall = (ticketId) => {
-    if (activeCounterId && !isRecalling) {
-      setIsRecalling(true);
-      api.callTicket(ticketId, activeCounterId, user.id).finally(() => {
-        // 4 second cooldown to prevent API and Firebase spam, matching the animation duration
-        setTimeout(() => setIsRecalling(false), 4000);
-      });
+    if (activeCounterId) {
+      api.callTicket(ticketId, activeCounterId, user.id);
     }
   };
 
@@ -294,8 +289,7 @@ export default function StaffDashboard({ user }) {
                 <div className="grid grid-cols-4 gap-1.5 relative z-10">
                   <HoldActionBtn 
                     onAction={() => handleRecall(ticket.id)} 
-                    disabled={isRecalling}
-                    className={`bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-xl flex flex-col items-center justify-center py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-500/40 transition-colors gap-0.5 shadow-sm font-bold text-[10px] ${isRecalling ? 'opacity-50 pointer-events-none' : ''}`}
+                    className={`bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-xl flex flex-col items-center justify-center py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-500/40 transition-colors gap-0.5 shadow-sm font-bold text-[10px]`}
                   >
                     <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Monitor size={10}/></div>
                     Recall

@@ -18,6 +18,7 @@ const MobileTracker = () => {
   const unsubscribeSearchRef = useRef(null);
   const unsubscribeWaitQRef = useRef(null);
   const isInitialLoad = useRef(true);
+  const flashTimeoutRef = useRef(null);
 
   const audioCtxRef = useRef(null);
 
@@ -82,7 +83,15 @@ const MobileTracker = () => {
     setFlashingTicketId(id);
     playBeep();
     if (soundEnabledRef.current && navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    setTimeout(() => setFlashingTicketId(null), 4000);
+    
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+    }
+    
+    flashTimeoutRef.current = setTimeout(() => {
+      setFlashingTicketId(null);
+      flashTimeoutRef.current = null;
+    }, 4000);
   };
 
   // Fetch branding: try local API first (LAN), fall back to Firebase (Vercel)
