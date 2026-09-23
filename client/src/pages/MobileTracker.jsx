@@ -15,6 +15,7 @@ const MobileTracker = () => {
   const [services, setServices] = useState([]);
   const [selectedServicePrefix, setSelectedServicePrefix] = useState('');
   const [ticketDate, setTicketDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dateMode, setDateMode] = useState('today');
   const [ticketNumberInput, setTicketNumberInput] = useState('');
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
@@ -369,13 +370,49 @@ const MobileTracker = () => {
                 ))
               )}
             </select>
-            <input
-              type="date"
-              value={ticketDate}
-              onChange={(e) => setTicketDate(e.target.value)}
-              className="bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm shrink-0"
-              required
-            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-1 mb-1">
+            <button 
+              type="button" 
+              onClick={() => {
+                const y = new Date(); y.setDate(y.getDate() - 1);
+                setTicketDate(y.toISOString().split('T')[0]);
+                setDateMode('yesterday');
+              }}
+              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'yesterday' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              Yesterday
+            </button>
+            <button 
+              type="button" 
+              onClick={() => {
+                setTicketDate(new Date().toISOString().split('T')[0]);
+                setDateMode('today');
+              }}
+              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'today' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              Today
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setDateMode('custom')}
+              className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all shadow-sm ${dateMode === 'custom' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-500/50' : 'bg-surface text-text-muted border-border hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            >
+              Custom Date
+            </button>
+            
+            {dateMode === 'custom' && (
+              <motion.input
+                initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                type="date"
+                value={ticketDate}
+                onChange={(e) => setTicketDate(e.target.value)}
+                className="bg-surface border border-border rounded-xl px-4 py-2 text-text-main text-sm font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm ml-auto"
+                required
+              />
+            )}
           </div>
           <div className="flex gap-2 w-full">
             <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
