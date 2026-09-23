@@ -46,6 +46,8 @@ const getSettings = async (req, res) => {
   }
 };
 
+const { syncSettings } = require('../services/cloudSync.service');
+
 const updateSettings = async (req, res) => {
   const { websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, zipperRatio, agingRate, skipLimit } = req.body;
   try {
@@ -55,6 +57,10 @@ const updateSettings = async (req, res) => {
       create: { id: 1, websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, zipperRatio, agingRate, skipLimit }
     });
     socketConfig.getIo().emit('settingsUpdated', settings);
+
+    // Push branding to Firebase for the Vercel tracker
+    await syncSettings(settings);
+
     res.json(settings);
   } catch (err) {
     console.error("Error updating settings:", err);

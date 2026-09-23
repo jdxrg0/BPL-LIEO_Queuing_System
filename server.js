@@ -12,7 +12,7 @@ const ticketRoutes = require('./server/routes/ticket.routes');
 const statsRoutes = require('./server/routes/stats.routes');
 const metaRoutes = require('./server/routes/meta.routes');
 const { autoBalanceCounters } = require('./server/controllers/meta.controller');
-const { catchUpSync } = require('./server/services/cloudSync.service');
+const { catchUpSync, syncSettings } = require('./server/services/cloudSync.service');
 const prisma = require('./server/config/db');
 
 // Import Security Middlewares
@@ -61,4 +61,7 @@ server.listen(PORT, async () => {
   console.log(`Server listening on port ${PORT}`);
   // Perform cloud sync catch up
   await catchUpSync(prisma);
+  // Push branding (logo, title) to Firebase for the Vercel tracker
+  const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+  if (settings) await syncSettings(settings);
 });

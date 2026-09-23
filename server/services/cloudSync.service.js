@@ -152,9 +152,30 @@ const clearCloudDatabase = async () => {
   }
 };
 
+/**
+ * Sync branding settings (logo, website name) to Firebase.
+ * This allows the public Vercel tracker to display the correct favicon and title
+ * without needing access to the local backend API.
+ */
+const syncSettings = async (settings) => {
+  if (!db) return;
+
+  try {
+    await db.collection('app_config').doc('settings').set({
+      logoBase64: settings.logoBase64 || '',
+      websiteName: settings.websiteName || 'BPLO Queuing System',
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    console.log('Cloud Sync: Synced branding settings to Firebase.');
+  } catch (error) {
+    console.warn('Cloud Sync Error: Could not sync settings', error.message);
+  }
+};
+
 module.exports = {
   syncTicket,
   removeTicket,
   catchUpSync,
-  clearCloudDatabase
+  clearCloudDatabase,
+  syncSettings
 };

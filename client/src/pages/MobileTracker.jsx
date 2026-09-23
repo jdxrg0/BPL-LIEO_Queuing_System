@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Search, MonitorPlay, Users } from 'lucide-react';
 import { db } from '../firebase';
 import { socket } from '../api';
@@ -13,6 +13,33 @@ const MobileTracker = () => {
   const [error, setError] = useState(null);
   const unsubscribeSearchRef = useRef(null);
   const unsubscribeWaitQRef = useRef(null);
+
+  // Fetch branding from Firebase and set favicon + title (works on Vercel)
+  useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const settingsDoc = await getDoc(doc(db, 'app_config', 'settings'));
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          if (data.logoBase64) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = 'icon';
+              document.head.appendChild(link);
+            }
+            link.href = data.logoBase64;
+          }
+          if (data.websiteName) {
+            document.title = data.websiteName + ' - Live Tracker';
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch branding from Firebase:', err.message);
+      }
+    };
+    fetchBranding();
+  }, []);
 
   useEffect(() => {
     let unsubscribe = () => {};
