@@ -307,19 +307,19 @@ const MobileTracker = () => {
               </div>
             ) : (
               <motion.div 
-                layout
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                layout="position"
+                initial={{ opacity: 0, y: 15 }}
                 animate={
                   flashingTicketId === myTicketResult.id?.toString()
-                    ? { opacity: 1, y: -15, scale: 1.05, zIndex: 50, boxShadow: "0 10px 40px -10px rgba(16, 185, 129, 0.4)" }
-                    : { opacity: 1, y: 0, scale: 1, zIndex: 1, boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)" }
+                    ? { opacity: 1, y: -10, scale: 1.02, zIndex: 50 }
+                    : { opacity: 1, y: 0, scale: 1, zIndex: 1 }
                 }
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className={`p-6 rounded-2xl border flex flex-col items-center text-center shadow-sm w-full transition-colors duration-300 relative ${
-                  flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50' :
+                transition={{ type: "tween", ease: "easeOut", duration: 0.3 }}
+                className={`p-6 rounded-2xl border flex flex-col items-center text-center w-full transition-colors duration-300 relative ${
+                  flashingTicketId === myTicketResult.id?.toString() ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 ring-4 ring-emerald-400/50 shadow-lg' :
                   myTicketResult.status === 'SERVING' 
-                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' 
-                    : 'bg-surface border-border'
+                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 shadow-sm' 
+                    : 'bg-surface border-border shadow-sm'
                 }`}
               >
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border mb-3 ${getPriorityColor(myTicketResult.priorityType)}`}>
@@ -389,21 +389,21 @@ const MobileTracker = () => {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence>
                 {servingTickets.map((ticket) => (
                   <motion.div 
-                    layout
-                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    layout="position"
+                    initial={{ opacity: 0, y: 15 }}
                     animate={
                       flashingTicketId === ticket.id?.toString()
-                        ? { opacity: 1, y: -15, scale: 1.05, zIndex: 50, boxShadow: "0 10px 40px -10px rgba(16, 185, 129, 0.4)" }
-                        : { opacity: 1, y: 0, scale: 1, zIndex: 1, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" }
+                        ? { opacity: 1, y: -10, scale: 1.02, zIndex: 50 }
+                        : { opacity: 1, y: 0, scale: 1, zIndex: 1 }
                     }
-                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ type: "tween", ease: "easeOut", duration: 0.3 }}
                     key={ticket.id} 
                     className={`border rounded-xl p-4 flex justify-between items-center w-full transition-colors duration-300 relative ${
-                      flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50' : 'bg-surface border-border'
+                      flashingTicketId === ticket.id?.toString() ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 ring-2 ring-emerald-400/50 shadow-lg' : 'bg-surface border-border shadow-sm'
                     }`}
                   >
                     <div className="flex flex-col gap-1">
