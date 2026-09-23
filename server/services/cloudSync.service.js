@@ -161,13 +161,19 @@ const syncSettings = async (settings) => {
   if (!db) return;
 
   try {
+    const activeServices = await prisma.service.findMany({ 
+      where: { isActive: true },
+      select: { prefix: true, name: true }
+    });
+
     await db.collection('live_tickets').doc('app_settings').set({
       logoBase64: settings.logoBase64 || '',
       websiteName: settings.websiteName || 'BPLO Queuing System',
+      services: activeServices,
       _type: 'settings', // marker to distinguish from real tickets
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
-    console.log('Cloud Sync: Synced branding settings to Firebase.');
+    console.log('Cloud Sync: Synced branding settings and services to Firebase.');
   } catch (error) {
     console.warn('Cloud Sync Error: Could not sync settings', error.message);
   }

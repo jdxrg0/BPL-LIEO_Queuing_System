@@ -12,6 +12,9 @@ const MobileTracker = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [websiteName, setWebsiteName] = useState('BPLO');
+  const [services, setServices] = useState([]);
+  const [selectedServicePrefix, setSelectedServicePrefix] = useState('');
+  const [ticketNumberInput, setTicketNumberInput] = useState('');
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -118,6 +121,10 @@ const MobileTracker = () => {
             document.title = `${data.websiteName} | Ticket Tracker`;
             setWebsiteName(data.websiteName);
           }
+          if (data.services && data.services.length > 0) {
+            setServices(data.services);
+            if (!selectedServicePrefix) setSelectedServicePrefix(data.services[0].prefix);
+          }
           return; // Success — no need to hit Firebase
         }
       } catch (_) { /* Local API unreachable (Vercel) — fall through to Firebase */ }
@@ -131,6 +138,10 @@ const MobileTracker = () => {
           if (data.websiteName) {
             document.title = `${data.websiteName} | Ticket Tracker`;
             setWebsiteName(data.websiteName);
+          }
+          if (data.services && data.services.length > 0) {
+            setServices(data.services);
+            if (!selectedServicePrefix) setSelectedServicePrefix(data.services[0].prefix);
           }
         }
       } catch (err) {
@@ -234,7 +245,13 @@ const MobileTracker = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchTicket.trim()) return;
+    if (!ticketNumberInput.trim() || !selectedServicePrefix) return;
+    
+    const today = new Date();
+    const dateStr = String(today.getMonth() + 1).padStart(2, '0') + 
+                    String(today.getDate()).padStart(2, '0') + 
+                    String(today.getFullYear()).slice(-2);
+    const fullTicketNumber = `${selectedServicePrefix}-${dateStr}-${ticketNumberInput.padStart(3, '0')}`;
     
     setIsSearching(true);
     setMyTicketResult(null);
@@ -243,7 +260,7 @@ const MobileTracker = () => {
     if (unsubscribeWaitQRef.current) unsubscribeWaitQRef.current();
 
     try {
-      const q = query(collection(db, 'live_tickets'), where('number', '==', searchTicket.toUpperCase().trim()));
+      const q = query(collection(db, 'live_tickets'), where('number', '==', fullTicketNumber));
       
       unsubscribeSearchRef.current = onSnapshot(q, (querySnapshot) => {
         setIsSearching(false);
@@ -336,21 +353,46 @@ const MobileTracker = () => {
         </div>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex gap-2 w-full px-1 box-border">
-          <input 
-            type="text" 
-            className="flex-1 min-w-0 bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors uppercase placeholder-slate-400 shadow-sm"
-            placeholder="Ticket No. (e.g. N-001)" 
-            value={searchTicket}
-            onChange={(e) => setSearchTicket(e.target.value)}
-          />
-          <button 
-            type="submit" 
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-3 font-bold disabled:opacity-50 transition-colors flex items-center justify-center shadow-sm shrink-0"
-            disabled={isSearching || !searchTicket.trim()}
-          >
-            {isSearching ? <span className="animate-spin text-lg">↻</span> : <Search size={20}/>}
-          </button>
+        <form onSubmit={handleSearch} className="flex flex-col gap-3 w-full px-1 box-border">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={selectedServicePrefix}
+              onChange={(e) => setSelectedServicePrefix(e.target.value)}
+              className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-text-main font-bold outline-none focus:border-indigo-500 transition-colors shadow-sm"
+              disabled={services.length === 0}
+            >
+              {services.length === 0 ? (
+                <option value="">Loading transactions...</option>
+              ) : (
+                services.map(s => (
+                  <option key={s.prefix} value={s.prefix}>{s.name} ({s.prefix})</option>
+                ))
+              )}
+            </select>
+          </div>
+          <div className="flex gap-2 w-full">
+            <div className="flex-1 flex items-center bg-surface border border-border rounded-xl px-4 text-text-main font-bold shadow-sm focus-within:border-indigo-500 transition-colors">
+              <span className="text-slate-400 mr-1 select-none text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                {selectedServicePrefix || '---'}-{String(new Date().getMonth() + 1).padStart(2, '0') + String(new Date().getDate()).padStart(2, '0') + String(new Date().getFullYear()).slice(-2)}-
+              </span>
+              <input 
+                type="number" 
+                className="w-full bg-transparent outline-none py-3 font-black text-lg"
+                placeholder="001" 
+                min="1"
+                max="999"
+                value={ticketNumberInput}
+                onChange={(e) => setTicketNumberInput(e.target.value)}
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-3 font-bold disabled:opacity-50 transition-colors flex items-center justify-center shadow-sm shrink-0"
+              disabled={isSearching || !ticketNumberInput.trim() || !selectedServicePrefix}
+            >
+              {isSearching ? <span className="animate-spin text-lg">↻</span> : <Search size={20}/>}
+            </button>
+          </div>
         </form>
 
         {/* Search Result */}
