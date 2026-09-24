@@ -1,7 +1,7 @@
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { autoBalanceCounters } = require('./meta.controller');
-const { syncTicket, removeTicket } = require('../services/cloudSync.service');
+const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
 
 const getPostponedTickets = async (req, res) => {
   try {
@@ -30,17 +30,12 @@ const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../uti
 
 const notifyApproachingTickets = async (serviceId) => {
   try {
-    const existingQueue = await prisma.ticket.findMany({
-      where: { serviceId, status: 'WAITING', pushSubscription: { not: null } },
-      orderBy: { createdAt: 'asc' }
-    });
-
-    if (existingQueue.length === 0) return; // No one to notify
-
     const fullQueue = await prisma.ticket.findMany({
       where: { serviceId, status: 'WAITING' },
       orderBy: { createdAt: 'asc' }
     });
+
+    if (fullQueue.length === 0) return;
 
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
@@ -55,23 +50,45 @@ const notifyApproachingTickets = async (serviceId) => {
     const scoredQueue = calculateSmartScores(fullQueue, priorityGroups, settings, recentTickets);
     scoredQueue.sort((a, b) => b.score - a.score);
 
-    for (const ticket of existingQueue) {
+    const db = getDb();
+
+    for (const ticket of fullQueue) {
       const rankIndex = scoredQueue.findIndex(t => t.id === ticket.id);
       const trueRank = rankIndex !== -1 ? rankIndex + 1 : scoredQueue.length;
 
       if (trueRank <= 2) {
         try {
-          const sub = JSON.parse(ticket.pushSubscription);
-          await webpush.sendNotification(sub, JSON.stringify({
-            title: 'Your turn is approaching!',
-            body: `You are exactly ${trueRank} spot(s) away from being called. Please proceed to the waiting area.`,
-            ticketNumber: ticket.number
-          }));
-          // Once notified, we can clear the subscription so we don't spam them
-          await prisma.ticket.update({
-            where: { id: ticket.id },
-            data: { pushSubscription: null }
-          });
+          let pushSub = null;
+          
+          // First check local SQLite database (if subscribed locally)
+          if (ticket.pushSubscription) {
+            pushSub = ticket.pushSubscription;
+          } 
+          // Then check Firebase for mobile Vercel users!
+          else if (db) {
+            const docRef = await db.collection('live_tickets').doc(ticket.id.toString()).get();
+            if (docRef.exists && docRef.data().pushSubscription) {
+              pushSub = docRef.data().pushSubscription;
+            }
+          }
+
+          if (pushSub) {
+            const sub = typeof pushSub === 'string' ? JSON.parse(pushSub) : pushSub;
+            await webpush.sendNotification(sub, JSON.stringify({
+              title: 'Your turn is approaching!',
+              body: `You are exactly ${trueRank} spot(s) away from being called. Please proceed to the waiting area.`,
+              ticketNumber: ticket.number
+            }));
+            
+            // Clear subscription from both local DB and Firebase to prevent spam
+            await prisma.ticket.update({
+              where: { id: ticket.id },
+              data: { pushSubscription: null }
+            });
+            if (db) {
+              await db.collection('live_tickets').doc(ticket.id.toString()).set({ pushSubscription: null }, { merge: true });
+            }
+          }
         } catch (err) {
           console.error(`Push failed for ticket ${ticket.number}:`, err);
         }
@@ -262,19 +279,28 @@ const callTicket = async (req, res) => {
     if (!existingTicket) return res.status(404).json({ error: 'Ticket not found' });
 
     const isRecall = existingTicket.status === 'SERVING';
+    let ticket;
 
-    const ticket = await prisma.ticket.update({
-      where: { id: parseInt(id) },
-      data: {
-        status: 'SERVING',
-        counterId,
-        servedByUserId,
-        servedAt: isRecall ? existingTicket.servedAt : new Date()
-      },
-      include: { counter: true, service: true }
-    });
+    if (isRecall) {
+      // For a recall, we just read the ticket data and skip ALL SQLite writes.
+      // This completely prevents database locks when spamming the recall button.
+      ticket = await prisma.ticket.findUnique({
+        where: { id: parseInt(id) },
+        include: { counter: true, service: true }
+      });
+    } else {
+      // Normal call: Perform updates
+      ticket = await prisma.ticket.update({
+        where: { id: parseInt(id) },
+        data: {
+          status: 'SERVING',
+          counterId,
+          servedByUserId,
+          servedAt: new Date()
+        },
+        include: { counter: true, service: true }
+      });
 
-    if (!isRecall) {
       // Smart Queue: Increment skipCount ONLY on the first call, not on recalls
       await prisma.ticket.updateMany({
         where: {
@@ -286,17 +312,48 @@ const callTicket = async (req, res) => {
           skipCount: { increment: 1 }
         }
       });
+      
+      socketConfig.getIo().emit('queueUpdated');
+
+      const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+      if (settings?.autoAdaptive) {
+        await autoBalanceCounters(null, null);
+      }
     }
 
     socketConfig.getIo().emit('ticketCalled', ticket);
-    socketConfig.getIo().emit('queueUpdated');
 
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
-    if (settings?.autoAdaptive) {
-      await autoBalanceCounters(null, null);
+    // Send Push Notification if they are subscribed!
+    if (!isRecall) {
+      try {
+        let pushSub = existingTicket.pushSubscription;
+        const db = getDb();
+        if (!pushSub && db) {
+          const docRef = await db.collection('live_tickets').doc(ticket.id.toString()).get();
+          if (docRef.exists && docRef.data().pushSubscription) {
+            pushSub = docRef.data().pushSubscription;
+          }
+        }
+        
+        if (pushSub) {
+          const sub = typeof pushSub === 'string' ? JSON.parse(pushSub) : pushSub;
+          await webpush.sendNotification(sub, JSON.stringify({
+            title: 'It is your turn!',
+            body: `Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`,
+            url: `/?ticket=${ticket.number}`,
+            ticketNumber: ticket.number
+          }));
+          
+          await prisma.ticket.update({ where: { id: ticket.id }, data: { pushSubscription: null } });
+          if (db) await db.collection('live_tickets').doc(ticket.id.toString()).set({ pushSubscription: null }, { merge: true });
+        }
+      } catch (err) {
+        console.error(`Push failed for called ticket ${ticket.number}:`, err);
+      }
     }
 
-    // Sync to Cloud (Non-blocking)
+    // Sync to Cloud (Non-blocking) - this updates Firebase's updatedAt timestamp
+    // so Vercel trackers will detect the recall and play the beep.
     syncTicket(ticket);
 
     res.json(ticket);

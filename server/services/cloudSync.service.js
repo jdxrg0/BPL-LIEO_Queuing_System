@@ -202,5 +202,6 @@ module.exports = {
   removeTicket,
   catchUpSync,
   clearCloudDatabase,
-  syncSettings
+  syncSettings,
+  getDb: () => db
 };

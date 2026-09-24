@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, MonitorPlay, Users, Volume2, VolumeX } from 'lucide-react';
+import { Search, MonitorPlay, Users, Volume2, VolumeX, Bell, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
@@ -545,9 +545,62 @@ const MobileTracker = () => {
                 </p>
                 
                 {myTicketResult.status === 'WAITING' && (
-                  <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
-                    <Users size={16} /> {myTicketResult.peopleAhead} people ahead
+                  <div className="flex flex-col gap-1 mt-2 mb-4 bg-surface rounded-xl p-3 border border-border w-full items-center shadow-inner">
+                    <div className="flex items-center gap-2 text-text-main text-sm font-bold">
+                      <Users size={16} className="text-indigo-500"/> {myTicketResult.peopleAhead} people ahead
+                    </div>
+                    <div className="flex items-center gap-2 text-text-muted text-sm font-medium">
+                      <Clock size={16} className="text-amber-500"/> Estimated wait: ~{Math.max(2, myTicketResult.peopleAhead * 5)} mins
+                    </div>
                   </div>
+                )}
+
+                {myTicketResult.status === 'WAITING' && (
+                  <button 
+                    onClick={async () => {
+                      try {
+                        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                          alert('Push notifications are not supported by your browser.');
+                          return;
+                        }
+                        const registration = await navigator.serviceWorker.register('/service-worker.js');
+                        const permission = await Notification.requestPermission();
+                        if (permission !== 'granted') {
+                          alert('You must allow notifications to use this feature.');
+                          return;
+                        }
+
+                        // Base64 VAPID Key to Uint8Array
+                        const publicVapidKey = 'BHHzuNoTCb79v4QKmJxQvMCRPxeuPxtwkdHFmE_XkAEGid-4gioeTaAnIqOQ2cpjvm4zJtdHcrGyAgQlsT1BlAQ';
+                        const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
+                        const base64 = (publicVapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+                        const rawData = window.atob(base64);
+                        const outputArray = new Uint8Array(rawData.length);
+                        for (let i = 0; i < rawData.length; ++i) {
+                          outputArray[i] = rawData.charCodeAt(i);
+                        }
+
+                        const subscription = await registration.pushManager.subscribe({
+                          userVisibleOnly: true,
+                          applicationServerKey: outputArray
+                        });
+
+                        // Save directly to Firebase so the backend can read it
+                        const { doc, setDoc } = await import('firebase/firestore');
+                        await setDoc(doc(db, 'live_tickets', myTicketResult.id.toString()), {
+                          pushSubscription: JSON.stringify(subscription)
+                        }, { merge: true });
+
+                        alert('Success! You will be notified when your turn is approaching.');
+                      } catch (err) {
+                        console.error('Push error:', err);
+                        alert('Failed to subscribe: ' + err.message);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full mt-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors shadow-sm"
+                  >
+                    <Bell size={18} /> Notify me when it's my turn
+                  </button>
                 )}
                 
                 {myTicketResult.status === 'SERVING' && (
