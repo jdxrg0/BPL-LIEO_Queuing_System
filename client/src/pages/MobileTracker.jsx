@@ -589,7 +589,7 @@ const MobileTracker = () => {
                           outputArray[i] = rawData.charCodeAt(i);
                         }
 
-                        const subscription = await registration.pushManager.subscribe({
+                        subscription = await registration.pushManager.subscribe({
                           userVisibleOnly: true,
                           applicationServerKey: outputArray
                         });
