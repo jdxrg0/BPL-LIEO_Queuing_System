@@ -20,6 +20,8 @@ try {
   console.warn('Firebase Admin failed to initialize. Cloud Sync will be disabled.', error.message);
 }
 
+const syncDebounceMap = new Map();
+
 /**
  * Synchronize a ticket to the cloud (Firestore).
  * Called when a ticket is created or its status updates to WAITING or SERVING.
@@ -28,34 +30,50 @@ try {
 const syncTicket = async (ticket) => {
   if (!db) return; // Skip if Firebase is not configured
 
-  try {
-    // Only sync essential data for the public tracker
-    const syncData = {
-      id: ticket.id,
-      number: ticket.number,
-      status: ticket.status,
-      priorityType: ticket.priorityType,
-      serviceId: ticket.serviceId,
-      counterId: ticket.counterId || null,
-      updatedAt: FieldValue.serverTimestamp()
-    };
+  const ticketId = ticket.id.toString();
 
-    // Use ticket.id as the document ID for easy reference
-    await db.collection('live_tickets').doc(ticket.id.toString()).set(syncData, { merge: true });
-    
-    if (isOffline) {
-      console.log('Cloud Sync: Reconnected and synced ticket', ticket.number);
-      isOffline = false;
-      // Trigger a full catch-up sync in the background to push any missed tickets
-      catchUpSync().catch(err => console.error("Offline recovery sync failed:", err.message));
-    }
-  } catch (error) {
-    if (!isOffline) {
-      console.warn('Cloud Sync Error: Could not sync ticket (possibly offline)', error.message);
-      isOffline = true;
-    }
-    // We swallow the error so it doesn't crash the local LAN system
+  // Debounce logic: clear any pending sync for this ticket
+  if (syncDebounceMap.has(ticketId)) {
+    clearTimeout(syncDebounceMap.get(ticketId));
   }
+
+  // Schedule the sync to execute after a short delay (e.g., 500ms)
+  // This batches rapid-fire Recall spams into a single outbound Firebase request.
+  const timeoutId = setTimeout(async () => {
+    syncDebounceMap.delete(ticketId);
+    try {
+      // Only sync essential data for the public tracker
+      const syncData = {
+        id: ticket.id,
+        number: ticket.number,
+        status: ticket.status,
+        priorityType: ticket.priorityType,
+        serviceId: ticket.serviceId,
+        counterId: ticket.counterId || null,
+        updatedAt: FieldValue.serverTimestamp()
+      };
+
+      // Use ticket.id as the document ID for easy reference
+      await db.collection('live_tickets').doc(ticketId).set(syncData, { merge: true });
+      
+      if (isOffline) {
+        console.log('Cloud Sync: Reconnected and synced ticket', ticket.number);
+        isOffline = false;
+        // Trigger a full catch-up sync in the background to push any missed tickets
+        if (typeof catchUpSync === 'function') {
+          catchUpSync().catch(err => console.error("Offline recovery sync failed:", err.message));
+        }
+      }
+    } catch (error) {
+      if (!isOffline) {
+        console.warn('Cloud Sync Error: Could not sync ticket (possibly offline)', error.message);
+        isOffline = true;
+      }
+      // We swallow the error so it doesn't crash the local LAN system
+    }
+  }, 500);
+
+  syncDebounceMap.set(ticketId, timeoutId);
 };
 
 /**
