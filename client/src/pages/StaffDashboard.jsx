@@ -145,9 +145,22 @@ export default function StaffDashboard({ user }) {
     }
   };
 
-  const handleRecall = (ticketId) => {
-    if (activeCounterId) {
-      api.callTicket(ticketId, activeCounterId, user.id);
+  const [recallCooldowns, setRecallCooldowns] = useState({});
+
+  const handleRecall = async (ticketId) => {
+    if (activeCounterId && !recallCooldowns[ticketId]) {
+      // Set cooldown for this specific ticket
+      setRecallCooldowns(prev => ({ ...prev, [ticketId]: true }));
+      try {
+        await api.callTicket(ticketId, activeCounterId, user.id);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        // Remove cooldown after 5 seconds
+        setTimeout(() => {
+          setRecallCooldowns(prev => ({ ...prev, [ticketId]: false }));
+        }, 5000);
+      }
     }
   };
 
@@ -291,10 +304,11 @@ export default function StaffDashboard({ user }) {
                 
                 <div className="grid grid-cols-4 gap-1.5 relative z-10">
                   <HoldActionBtn 
+                    disabled={recallCooldowns[ticket.id]}
                     onAction={() => handleRecall(ticket.id)} 
-                    className={`bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-xl flex flex-col items-center justify-center py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-500/40 transition-colors gap-0.5 shadow-sm font-bold text-[10px]`}
+                    className={`bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 rounded-xl flex flex-col items-center justify-center py-1.5 transition-colors gap-0.5 shadow-sm font-bold text-[10px] ${recallCooldowns[ticket.id] ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-indigo-100 dark:hover:bg-indigo-500/40'}`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Monitor size={10}/></div>
+                    <div className={`w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400`}><Monitor size={10}/></div>
                     Recall
                   </HoldActionBtn>
 

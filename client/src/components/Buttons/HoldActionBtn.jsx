@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function HoldActionBtn({ onAction, text, children, style, className, holdTime = 600 }) {
+export default function HoldActionBtn({ onAction, text, children, style, className, holdTime = 600, disabled = false }) {
   const [progress, setProgress] = useState(0);
   const timerRef = useRef(null);
 
   const startHold = (e) => {
+    if (disabled) return;
     // Only left clicks or touches
     if (e.type === 'mousedown' && e.button !== 0) return;
     
