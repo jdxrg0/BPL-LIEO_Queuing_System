@@ -335,10 +335,13 @@ const MobileTracker = () => {
               }
               // Trigger the animation if the ticket was ALREADY SERVING but got recalled (updatedAt changed)
               else if (prev && prev.status === 'SERVING' && t.status === 'SERVING') {
-                const prevTime = prev.updatedAt?.seconds || 0;
-                const newTime = t.updatedAt?.seconds || 0;
-                // If the new time is strictly greater, it was recalled by the admin
-                if (prevTime > 0 && newTime > prevTime) {
+                const prevSeconds = prev.updatedAt?.seconds || 0;
+                const prevNanos = prev.updatedAt?.nanoseconds || 0;
+                const newSeconds = t.updatedAt?.seconds || 0;
+                const newNanos = t.updatedAt?.nanoseconds || 0;
+                
+                // If the timestamp is strictly newer (using seconds and nanoseconds), it was recalled by the admin
+                if (prevSeconds > 0 && (newSeconds > prevSeconds || (newSeconds === prevSeconds && newNanos > prevNanos))) {
                   triggerFlash(t.id.toString());
                 }
               }

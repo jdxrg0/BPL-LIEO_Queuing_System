@@ -258,28 +258,35 @@ const callTicket = async (req, res) => {
     const { id } = req.params;
     const { counterId, servedByUserId } = req.body;
 
+    const existingTicket = await prisma.ticket.findUnique({ where: { id: parseInt(id) } });
+    if (!existingTicket) return res.status(404).json({ error: 'Ticket not found' });
+
+    const isRecall = existingTicket.status === 'SERVING';
+
     const ticket = await prisma.ticket.update({
       where: { id: parseInt(id) },
       data: {
         status: 'SERVING',
         counterId,
         servedByUserId,
-        servedAt: new Date()
+        servedAt: isRecall ? existingTicket.servedAt : new Date()
       },
       include: { counter: true, service: true }
     });
 
-    // Smart Queue: Increment skipCount for any older tickets that are still waiting
-    await prisma.ticket.updateMany({
-      where: {
-        status: 'WAITING',
-        serviceId: ticket.serviceId,
-        createdAt: { lt: ticket.createdAt }
-      },
-      data: {
-        skipCount: { increment: 1 }
-      }
-    });
+    if (!isRecall) {
+      // Smart Queue: Increment skipCount ONLY on the first call, not on recalls
+      await prisma.ticket.updateMany({
+        where: {
+          status: 'WAITING',
+          serviceId: ticket.serviceId,
+          createdAt: { lt: ticket.createdAt }
+        },
+        data: {
+          skipCount: { increment: 1 }
+        }
+      });
+    }
 
     socketConfig.getIo().emit('ticketCalled', ticket);
     socketConfig.getIo().emit('queueUpdated');
