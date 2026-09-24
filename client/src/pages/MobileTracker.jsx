@@ -564,6 +564,8 @@ const MobileTracker = () => {
                           return;
                         }
                         const registration = await navigator.serviceWorker.register('/service-worker.js');
+                        await navigator.serviceWorker.ready; // Ensure it's fully active
+
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
                           alert('You must allow notifications to use this feature.');
@@ -571,7 +573,7 @@ const MobileTracker = () => {
                         }
 
                         // Base64 VAPID Key to Uint8Array
-                        const publicVapidKey = 'BHHzuNoTCb79v4QKmJxQvMCRPxeuPxtwkdHFmE_XkAEGid-4gioeTaAnIqOQ2cpjvm4zJtdHcrGyAgQlsT1BlAQ';
+                        const publicVapidKey = 'BKEFqoADtJUFNkyGKbtQLA2JweGfs5Q-s1V5JxaoqHqWDaEI30qfimnMsc3yJ_09v9cIggnq8Jt5CnkJdHZ_H0U';
                         const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
                         const base64 = (publicVapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
                         const rawData = window.atob(base64);
