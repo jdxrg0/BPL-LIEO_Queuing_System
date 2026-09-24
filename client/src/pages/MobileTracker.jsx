@@ -566,6 +566,13 @@ const MobileTracker = () => {
                         const registration = await navigator.serviceWorker.register('/service-worker.js');
                         await navigator.serviceWorker.ready; // Ensure it's fully active
 
+                        // Fix: If there's an existing subscription (with an old VAPID key), unsubscribe first!
+                        // This prevents the "Registration failed - push service error"
+                        let subscription = await registration.pushManager.getSubscription();
+                        if (subscription) {
+                          await subscription.unsubscribe();
+                        }
+
                         const permission = await Notification.requestPermission();
                         if (permission !== 'granted') {
                           alert('You must allow notifications to use this feature.');
