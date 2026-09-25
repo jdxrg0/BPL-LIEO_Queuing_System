@@ -469,8 +469,8 @@ const MobileTracker = () => {
     const dateStr = parts[1] + parts[2] + parts[0].slice(-2);
     const fullTicketNumber = `${selectedServicePrefix}-${dateStr}-${ticketNumberInput.padStart(3, '0')}`;
     
-    // Persist search so it survives PWA page reloads (e.g., after notification tap)
-    sessionStorage.setItem('bplo-last-search', fullTicketNumber);
+    // Persist search so it survives PWA page reloads and closures (e.g., after notification tap)
+    localStorage.setItem('bplo-last-search', fullTicketNumber);
 
     // Request permission synchronously on user gesture if not granted yet
     let permissionPromise = null;
@@ -483,9 +483,9 @@ const MobileTracker = () => {
 
   // Auto-restore search after PWA reload (e.g., returning from a notification)
   useEffect(() => {
-    const savedSearch = sessionStorage.getItem('bplo-last-search');
+    const savedSearch = localStorage.getItem('bplo-last-search');
     if (savedSearch) {
-      startTicketSearch(savedSearch);
+      startTicketSearch(savedSearch, false, false, null);
     }
   }, []);
 
