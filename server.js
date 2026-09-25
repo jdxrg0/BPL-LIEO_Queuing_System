@@ -41,8 +41,8 @@ app.use('/api', apiLimiter);
 
 app.use('/api/users', verifyToken, userRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api', metaRoutes); // /api/services, /api/counters, /api/settings, /api/admin/..., /api/stats/live-wait-times
 app.use('/api/stats', verifyToken, statsRoutes);
-app.use('/api', metaRoutes); // /api/services, /api/counters, /api/settings, /api/admin/...
 
 // Socket.io Event Listeners
 io.on('connection', (socket) => {

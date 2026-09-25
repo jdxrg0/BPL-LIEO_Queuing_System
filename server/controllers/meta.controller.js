@@ -3,6 +3,7 @@ const socketConfig = require('../config/socket');
 const { calculatePredictiveWaitTime } = require('../utils/smartQueueEngine');
 const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../utils/capacityTracker');
 const { buildServiceFlagMap, getUnallocatableServices } = require('../utils/serviceFlagMap');
+const { ensureMinimumCoverage } = require('../utils/capacityCoverage');
 
 const getServices = async (req, res) => {
   try {
@@ -205,7 +206,7 @@ const performAutoBalance = async () => {
         const activeQueues = services.filter(s => waitingCountByService[s.prefix] > 0 && flagByPrefix[s.prefix]).map(s => s.prefix);
         const userAssignments = autoAssignUsers.map(u => ({ id: u.id, caterNew: false, caterRenewal: false, caterRetirement: false }));
         
-        if (autoAssignUsers.length <= activeQueues.length) {
+        if (autoAssignUsers.length < activeQueues.length) {
           // Fallback to Multi-Tasking to prevent starvation
           userAssignments.forEach(a => {
             a.caterNew = false;
@@ -240,7 +241,7 @@ const performAutoBalance = async () => {
             let assignedSoFar = Object.values(allocation).reduce((a, b) => a + b, 0);
             let unassigned = autoAssignUsers.length - assignedSoFar;
             
-            const sortedByFraction = activeQueues.sort((a, b) => fractions[b] - fractions[a]);
+            const sortedByFraction = [...activeQueues].sort((a, b) => fractions[b] - fractions[a]);
             for (let i = 0; i < unassigned; i++) {
               allocation[sortedByFraction[i]] += 1;
             }
@@ -257,6 +258,12 @@ const performAutoBalance = async () => {
             }
           }
         }
+
+        // Minimum coverage guarantee: every active window - even one with zero
+        // waiting tickets right now - keeps at least one auto-assignable staff
+        // member. A lull in traffic can no longer strip a transaction of staff.
+        // This is additive only; busy windows keep their extra help.
+        ensureMinimumCoverage(userAssignments, services, flagByPrefix);
 
         for (const assignment of userAssignments) {
           const currentUser = autoAssignUsers.find(u => u.id === assignment.id);

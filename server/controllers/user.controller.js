@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
+const { scheduleAutoBalance } = require('./meta.controller');
 
 const getUsers = async (req, res) => {
   try {
@@ -98,6 +99,8 @@ const updateUser = async (req, res) => {
     if (caterRetirement !== undefined) updateData.caterRetirement = caterRetirement;
     if (autoAssign !== undefined) updateData.autoAssign = autoAssign;
 
+    const counterChanged = windowNumber !== undefined;
+
     if (windowNumber !== undefined) {
       if (windowNumber) {
         const counterName = `Window ${windowNumber}`;
@@ -119,6 +122,15 @@ const updateUser = async (req, res) => {
     
     const updatedUser = { id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement, autoAssign: user.autoAssign };
     socketConfig.getIo().emit('userUpdated', updatedUser);
+
+    // Staff composition changed (logged in/out of a window): re-balance within
+    // ~3s so a window is never left uncovered until the next 5-minute tick.
+    if (counterChanged) {
+      const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+      if (settings?.autoAdaptive) {
+        scheduleAutoBalance();
+      }
+    }
     
     res.json(updatedUser);
   } catch (error) {
