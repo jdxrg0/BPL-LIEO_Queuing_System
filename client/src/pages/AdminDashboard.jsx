@@ -1,20 +1,47 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api, socket } from '../api';
-import { User, Printer, Settings, Users, ArrowUpRight, TrendingUp, RefreshCw, X, UserPlus, FileText } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { User, Printer, Settings, Users, TrendingUp, RefreshCw, X, UserPlus, FileText } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import ModalWrapper from '../components/Modals/ModalWrapper';
 import AddEmployeeModal from '../components/Modals/AddEmployeeModal';
 import EditUserModal from '../components/Modals/EditUserModal';
+
+const SERVICE_STYLES = {
+  NW: {
+    name: 'New Application',
+    text: 'text-emerald-600',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    soft: 'bg-emerald-50',
+    card: 'border-emerald-100'
+  },
+  RNW: {
+    name: 'Renewal',
+    text: 'text-amber-500',
+    badge: 'bg-amber-50 text-amber-700 border-amber-100',
+    soft: 'bg-amber-50',
+    card: 'border-amber-100'
+  },
+  R: {
+    name: 'Retirement',
+    text: 'text-rose-600',
+    badge: 'bg-rose-50 text-rose-700 border-rose-100',
+    soft: 'bg-rose-50',
+    card: 'border-rose-100'
+  }
+};
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [printConfig, setPrintConfig] = useState({ type: 'NW', startNumber: 1, quantity: 50 });
-  const [globalSettings, setGlobalSettings] = useState(null);
+  
+  // Live queue operational data
+  const [liveWaitTimes, setLiveWaitTimes] = useState(null);
+  const [waitingCounts, setWaitingCounts] = useState({ NW: 0, RNW: 0, R: 0 });
+  const [servingTickets, setServingTickets] = useState([]);
   
   // Selected user for EditUserModal
   const [editingUser, setEditingUser] = useState(null);
@@ -69,14 +96,35 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsData, settingsData] = await Promise.all([
-        api.getStats(trendStartRef.current, trendEndRef.current, filterYearRef.current),
-        api.getSettings()
-      ]);
+      const statsData = await api.getStats(trendStartRef.current, trendEndRef.current, filterYearRef.current);
       setStats(statsData);
-      setGlobalSettings(settingsData);
     } catch (err) {
       console.error('Failed to fetch admin data', err);
+    }
+  };
+
+  const fetchLiveData = async () => {
+    const [waitTimesRes, waitingRes, servingRes] = await Promise.allSettled([
+      api.getLiveWaitTimes(),
+      api.getWaitingQueue(),
+      api.getRecentCalled()
+    ]);
+
+    if (waitTimesRes.status === 'fulfilled') {
+      setLiveWaitTimes(waitTimesRes.value);
+    }
+
+    if (waitingRes.status === 'fulfilled') {
+      const counts = { NW: 0, RNW: 0, R: 0 };
+      (waitingRes.value || []).forEach(t => {
+        const prefix = t.service?.prefix;
+        if (prefix && counts[prefix] !== undefined) counts[prefix]++;
+      });
+      setWaitingCounts(counts);
+    }
+
+    if (servingRes.status === 'fulfilled') {
+      setServingTickets(servingRes.value || []);
     }
   };
 
@@ -88,16 +136,26 @@ export default function AdminDashboard() {
   }, [trendStart, trendEnd, filterYear]);
 
   useEffect(() => {
-    const interval = setInterval(fetchData, 30000);
+    fetchLiveData();
+
+    const interval = setInterval(() => {
+      fetchData();
+      fetchLiveData();
+    }, 30000);
     
-    const handleUpdate = () => fetchData();
+    const handleUpdate = () => {
+      fetchData();
+      fetchLiveData();
+    };
     socket.on('queueUpdated', handleUpdate);
     socket.on('ticketCreated', handleUpdate);
+    socket.on('ticketCalled', handleUpdate);
 
     return () => {
       clearInterval(interval);
       socket.off('queueUpdated', handleUpdate);
       socket.off('ticketCreated', handleUpdate);
+      socket.off('ticketCalled', handleUpdate);
     };
   }, []);
 
@@ -118,7 +176,12 @@ export default function AdminDashboard() {
         <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
             <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Tickets Issued</h2>
-            <p className="text-text-muted mt-0.5 text-xs font-medium">Daily volume of new tickets</p>
+            <p className="text-text-muted mt-0.5 text-xs font-medium mb-2">Daily volume of new tickets</p>
+            <div className="flex gap-4">
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>New Apps</span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>Renewals</span>
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>Retirements</span>
+            </div>
           </div>
           <div className="flex gap-3 items-center bg-bg-color p-1.5 rounded-xl border border-slate-100">
             <div className="flex items-center gap-1.5 pl-1.5">
@@ -145,12 +208,34 @@ export default function AdminDashboard() {
               />
               <Line 
                 type="monotone" 
-                dataKey="tickets" 
-                name="Tickets Created" 
-                stroke="var(--color-primary)" 
-                strokeWidth={4} 
-                dot={{ r: 5, fill: 'var(--color-primary)', strokeWidth: 3, stroke: 'white' }} 
-                activeDot={{ r: 8, strokeWidth: 0, shadow: '0 0 10px rgba(79,70,229,0.5)' }} 
+                dataKey="newApp" 
+                name="New Apps" 
+                stroke="#10b981" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: '#10b981', strokeWidth: 3, stroke: 'white' }} 
+                activeDot={{ r: 8, strokeWidth: 0 }} 
+                animationDuration={1500}
+                animationEasing="ease-out"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="renewal" 
+                name="Renewals" 
+                stroke="#f59e0b" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: '#f59e0b', strokeWidth: 3, stroke: 'white' }} 
+                activeDot={{ r: 8, strokeWidth: 0 }} 
+                animationDuration={1500}
+                animationEasing="ease-out"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="retirement" 
+                name="Retirements" 
+                stroke="#f43f5e" 
+                strokeWidth={3} 
+                dot={{ r: 4, fill: '#f43f5e', strokeWidth: 3, stroke: 'white' }} 
+                activeDot={{ r: 8, strokeWidth: 0 }} 
                 animationDuration={1500}
                 animationEasing="ease-out"
               />
@@ -168,7 +253,10 @@ export default function AdminDashboard() {
       <div className="bg-surface rounded-3xl overflow-hidden shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <div className="p-4 px-5 border-b border-border bg-bg-color/50 flex justify-between items-center">
           <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Employee Performance</h2>
-          <span className="text-xs font-semibold text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border">{stats.employees.length} Users</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border uppercase tracking-wider">FY {stats.office.year}</span>
+            <span className="text-xs font-semibold text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border">{stats.employees.length} Users</span>
+          </div>
         </div>
         
         <div className="overflow-x-auto flex-1">
@@ -177,6 +265,7 @@ export default function AdminDashboard() {
               <tr className="bg-surface text-text-muted text-[10px] uppercase tracking-wider font-extrabold">
                 <th className="p-3 px-4">Employee Details</th>
                 <th className="p-3 px-4 text-center">Total</th>
+                <th className="p-3 px-4 text-center">All-Time</th>
                 <th className="p-3 px-4 text-center">NW</th>
                 <th className="p-3 px-4 text-center">RNW</th>
                 <th className="p-3 px-4 text-center">R</th>
@@ -222,10 +311,11 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-2 px-4 text-center font-black text-indigo-600 text-base">{emp.servedTotalYear}</td>
-                    <td className="p-2 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30 text-sm">{emp.servedNewYear}</td>
-                    <td className="p-2 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30 text-sm">{emp.servedRenewalYear}</td>
-                    <td className="p-2 px-4 text-center font-bold text-rose-600 bg-rose-50/30 text-sm">{emp.servedRetirementYear}</td>
+                    <td className="p-2 px-4 text-center font-black text-indigo-600 text-base">{emp.servedTotalYear.toLocaleString()}</td>
+                    <td className="p-2 px-4 text-center font-bold text-text-muted text-sm">{emp.servedTotalAllTime.toLocaleString()}</td>
+                    <td className="p-2 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30 text-sm">{emp.servedNewYear.toLocaleString()}</td>
+                    <td className="p-2 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30 text-sm">{emp.servedRenewalYear.toLocaleString()}</td>
+                    <td className="p-2 px-4 text-center font-bold text-rose-600 bg-rose-50/30 text-sm">{emp.servedRetirementYear.toLocaleString()}</td>
                     <td className="p-2 px-4 text-right">
                       <button 
                         onClick={() => setEditingUser(emp)} 
@@ -239,7 +329,7 @@ export default function AdminDashboard() {
               })}
               {stats.employees.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="p-12 text-center text-text-muted font-semibold text-lg bg-bg-color">No employees found.</td>
+                  <td colSpan="7" className="p-12 text-center text-text-muted font-semibold text-lg bg-bg-color">No employees found.</td>
                 </tr>
               )}
             </tbody>
@@ -306,7 +396,7 @@ export default function AdminDashboard() {
           </button>
           <button 
             className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
-            onClick={() => setIsSettingsModalOpen(true)}
+            onClick={() => window.dispatchEvent(new Event('openGlobalSettings'))}
           >
             <Settings size={14} className="text-indigo-600" /> Settings
           </button>
@@ -346,8 +436,177 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* Live Queue Overview */}
+      <div className="bg-surface rounded-3xl p-5 mb-6 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.05s' }}>
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div>
+            <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Live Queue</h2>
+            <p className="text-text-muted mt-0.5 text-xs font-medium">Real-time wait times and currently serving.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">Live</span>
+            <span className="ml-2 text-xs font-bold text-text-muted bg-bg-color px-2 py-1 rounded-lg border border-border">
+              {Object.values(waitingCounts).reduce((a, b) => a + b, 0)} waiting
+            </span>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
+              {servingTickets.length} serving
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {Object.entries(SERVICE_STYLES).map(([prefix, style]) => (
+            <div key={prefix} className={`rounded-2xl p-4 border ${style.card} bg-surface flex flex-col gap-2 relative overflow-hidden shadow-sm`}>
+              <div className={`absolute right-0 top-0 w-16 h-16 rounded-bl-full ${style.soft} opacity-40 pointer-events-none`}></div>
+              <div className="flex items-center justify-between relative z-10">
+                <span className="text-text-muted text-[10px] font-black uppercase tracking-widest">{style.name}</span>
+                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${style.badge}`}>{prefix}</span>
+              </div>
+              <div className="flex items-end justify-between relative z-10">
+                <span className={`text-3xl font-black tracking-tighter ${style.text}`}>{waitingCounts[prefix] || 0}</span>
+                <span className="text-xs font-bold text-text-muted mb-1">
+                  {liveWaitTimes && liveWaitTimes[prefix] !== undefined ? `~${liveWaitTimes[prefix]} min wait` : 'calculating…'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Now Serving */}
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="m-0 text-xs font-black text-text-muted uppercase tracking-wider">Now Serving</h3>
+            <span className="text-xs font-bold text-indigo-600">{servingTickets.length} active</span>
+          </div>
+          {servingTickets.length === 0 ? (
+            <div className="text-center py-6 text-text-muted font-semibold text-sm bg-bg-color/60 rounded-2xl border border-dashed border-border">No tickets currently being served.</div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {servingTickets.map(t => (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-bg-color border border-border shrink-0">
+                  <span className={`font-black text-base ${SERVICE_STYLES[t.service?.prefix]?.text || 'text-text-main'}`}>{t.number}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase border ${SERVICE_STYLES[t.service?.prefix]?.badge || 'border-border text-text-muted'}`}>{t.service?.prefix}</span>
+                  {t.counter?.name && <span className="text-xs font-bold text-text-muted">{t.counter.name}</span>}
+                  {t.priorityType && t.priorityType !== 'REGULAR' && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-100">{t.priorityType}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Trend Chart (Memoized) */}
       {renderChart}
+
+      {/* Quality Metrics */}
+      {stats.advanced && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-rose-50 opacity-50 pointer-events-none"></div>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">No-Show</span>
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100"><X size={18}/></div>
+              </div>
+              <span className="text-3xl font-black tracking-tighter text-rose-600 relative z-10">{stats.advanced.noShow}</span>
+            </div>
+
+            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-amber-50 opacity-50 pointer-events-none"></div>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Postponed</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-100"><RefreshCw size={18}/></div>
+              </div>
+              <span className="text-3xl font-black tracking-tighter text-amber-500 relative z-10">{stats.advanced.postponed}</span>
+            </div>
+
+            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-indigo-50 opacity-50 pointer-events-none"></div>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Avg Skips</span>
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100"><TrendingUp size={18}/></div>
+              </div>
+              <span className="text-3xl font-black tracking-tighter text-indigo-600 relative z-10">{stats.advanced.avgSkipCount}</span>
+            </div>
+
+            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-emerald-50 opacity-50 pointer-events-none"></div>
+              <div className="flex justify-between items-start mb-2 relative z-10">
+                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">YoY vs {stats.office.year - 1}</span>
+                <TrendingUp size={18} className={stats.advanced.yoy.pctChange >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
+              </div>
+              <div className="relative z-10 flex items-baseline gap-2">
+                <span className={`text-3xl font-black tracking-tighter ${stats.advanced.yoy.pctChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {stats.advanced.yoy.pctChange >= 0 ? '+' : ''}{stats.advanced.yoy.pctChange}%
+                </span>
+              </div>
+              <p className="m-0 mt-1 text-[10px] font-semibold text-text-muted relative z-10">
+                {stats.advanced.yoy.current.toLocaleString()} vs {stats.advanced.yoy.previous.toLocaleString()} same period {stats.office.year - 1}
+              </p>
+            </div>
+          </div>
+
+          {/* Busiest Hours + Priority Mix */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.2s' }}>
+              <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Busiest Hours</h2>
+              <p className="text-text-muted mt-0.5 text-xs font-medium">Completed tickets by hour of day</p>
+              <div className="h-56 w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.advanced.busiestHours} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 9, fontWeight: 600 }} interval={2} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 11, fontWeight: 600 }} dx={-10} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '16px', border: 'none', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px -10px rgba(79, 70, 229, 0.2)', padding: '12px 16px' }}
+                      itemStyle={{ color: 'var(--color-primary)', fontWeight: '900' }}
+                      labelStyle={{ color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '4px' }}
+                      cursor={{ fill: 'var(--color-primary)', opacity: 0.08 }}
+                    />
+                    <Bar dataKey="count" name="Tickets" radius={[6, 6, 0, 0]}>
+                      {stats.advanced.busiestHours.map((entry, idx) => (
+                        <Cell key={idx} fill={entry.count > 0 ? 'var(--color-primary)' : 'var(--color-border)'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.25s' }}>
+              <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Priority Mix</h2>
+              <p className="text-text-muted mt-0.5 text-xs font-medium">Completed tickets by priority group</p>
+              <div className="flex flex-col gap-4 mt-5">
+                {stats.advanced.priorityBreakdown.length === 0 ? (
+                  <div className="text-center py-8 text-text-muted font-semibold text-sm bg-bg-color/60 rounded-2xl border border-dashed border-border">No data for this period.</div>
+                ) : (
+                  (() => {
+                    const maxCount = Math.max(...stats.advanced.priorityBreakdown.map(i => i.count), 1);
+                    const totalCount = stats.advanced.priorityBreakdown.reduce((a, i) => a + i.count, 0);
+                    return stats.advanced.priorityBreakdown.map(item => (
+                      <div key={item.type} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-text-main">{item.label}</span>
+                          <span className="text-xs font-black text-indigo-600">{item.count.toLocaleString()} · {Math.round((item.count / totalCount) * 100)}%</span>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-bg-color overflow-hidden border border-border/50">
+                          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${(item.count / maxCount) * 100}%` }} />
+                        </div>
+                      </div>
+                    ));
+                  })()
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Employee Statistics Table (Memoized) */}
       {renderEmployeeTable}
@@ -414,44 +673,6 @@ export default function AdminDashboard() {
           >
             <Printer size={20} /> Generate Page
           </button>
-        </div>
-      </ModalWrapper>
-
-      {/* Settings Modal */}
-      <ModalWrapper isOpen={isSettingsModalOpen} zIndex={1000} bg="rgba(15,23,42,0.6)">
-        <div className="bg-surface p-8 rounded-3xl w-[450px] shadow-float border border-border animate-slide-up relative">
-          <button onClick={() => setIsSettingsModalOpen(false)} className="absolute top-6 right-6 bg-slate-100 border-none w-10 h-10 rounded-full flex items-center justify-center cursor-pointer text-text-muted hover:text-text-main hover:bg-slate-200 transition-colors">×</button>
-          
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-              <Settings size={24} />
-            </div>
-            <h2 className="m-0 text-2xl font-extrabold text-text-main tracking-tight">System Settings</h2>
-          </div>
-          
-          <div className="mb-8">
-            <label className="flex items-center gap-4 cursor-pointer p-4 rounded-xl border border-border bg-bg-color hover:border-indigo-300 transition-all">
-              <input 
-                type="checkbox" 
-                checked={globalSettings?.autoAdaptive || false} 
-                onChange={async (e) => {
-                  const val = e.target.checked;
-                  setGlobalSettings({...globalSettings, autoAdaptive: val});
-                  try {
-                    await api.updateSettings({ ...globalSettings, autoAdaptive: val });
-                    showPopup("Success", `Auto-Adaptive Allocation is now ${val ? 'enabled' : 'disabled'}.`, "success");
-                  } catch (err) {
-                    showPopup("Error", "Failed to update setting.", "error");
-                  }
-                }}
-                className="w-5 h-5 accent-indigo-600 cursor-pointer" 
-              />
-              <div className="flex flex-col">
-                <span className="font-extrabold text-text-main text-base">Auto-Adaptive Allocation</span>
-                <span className="text-text-muted text-xs font-semibold mt-1">Automatically rebalance counter queues on the fly.</span>
-              </div>
-            </label>
-          </div>
         </div>
       </ModalWrapper>
 

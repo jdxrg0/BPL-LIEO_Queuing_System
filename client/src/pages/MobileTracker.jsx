@@ -662,11 +662,24 @@ const MobileTracker = () => {
                           applicationServerKey: outputArray
                         });
 
-                        // Save directly to Firebase so the backend can read it
-                        const { doc, setDoc } = await import('firebase/firestore');
-                        await setDoc(doc(db, 'live_tickets', myTicketResult.id.toString()), {
-                          pushSubscription: JSON.stringify(subscription)
-                        }, { merge: true });
+                        // Strategy: Try local API first (LAN), fall back to Firebase (Vercel)
+                        let saved = false;
+                        try {
+                          const res = await fetch(`/api/tickets/track/${myTicketResult.number}/subscribe`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ subscription })
+                          });
+                          if (res.ok) saved = true;
+                        } catch (_) { /* Local API unreachable (Vercel) — fall through */ }
+
+                        if (!saved) {
+                          // Fallback: Save directly to Firebase for Vercel users
+                          const { doc: fbDoc, setDoc: fbSetDoc } = await import('firebase/firestore');
+                          await fbSetDoc(fbDoc(db, 'live_tickets', myTicketResult.id.toString()), {
+                            pushSubscription: JSON.stringify(subscription)
+                          }, { merge: true });
+                        }
 
                         alert('Success! You will be notified when your turn is approaching.');
                       } catch (err) {

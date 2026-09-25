@@ -57,7 +57,7 @@ const getStats = async (req, res) => {
         status: 'COMPLETED',
         completedAt: { gte: trendStart, lte: trendEnd }
       },
-      select: { completedAt: true, serviceId: true }
+      select: { completedAt: true, serviceId: true, skipCount: true, priorityType: true }
     });
 
     const dateBuckets = {};
@@ -138,10 +138,74 @@ const getStats = async (req, res) => {
 
     const employeeStats = Object.values(employeeMap);
 
+    // ======================== ADVANCED ANALYTICS (period = trend date range) ========================
+
+    const [noShowCount, postponedCount] = await Promise.all([
+      prisma.ticket.count({
+        where: { status: 'NO_SHOW', servedAt: { gte: trendStart, lte: trendEnd } }
+      }),
+      prisma.ticket.count({
+        where: { status: 'POSTPONED', createdAt: { gte: trendStart, lte: trendEnd } }
+      })
+    ]);
+
+    const priorityGroupsDb = await prisma.priorityGroup.findMany();
+    const priorityLabelMap = { REGULAR: 'Regular' };
+    priorityGroupsDb.forEach(g => { priorityLabelMap[g.name] = g.label; });
+
+    let totalSkip = 0;
+    const priorityCounts = {};
+    const hourCounts = new Array(24).fill(0);
+
+    trendTickets.forEach(t => {
+      totalSkip += t.skipCount || 0;
+      const p = t.priorityType || 'REGULAR';
+      priorityCounts[p] = (priorityCounts[p] || 0) + 1;
+      if (t.completedAt) {
+        hourCounts[new Date(t.completedAt).getHours()]++;
+      }
+    });
+
+    const avgSkipCount = trendTickets.length ? Math.round((totalSkip / trendTickets.length) * 10) / 10 : 0;
+    const priorityBreakdown = Object.entries(priorityCounts)
+      .map(([type, count]) => ({ type, label: priorityLabelMap[type] || type, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const busiestHours = hourCounts.map((count, hour) => ({
+      hour,
+      label: `${String(hour).padStart(2, '0')}:00`,
+      count
+    }));
+
+    // Year-over-Year: same date range shifted back one year
+    const prevYearStart = new Date(trendStart);
+    prevYearStart.setFullYear(prevYearStart.getFullYear() - 1);
+    const prevYearEnd = new Date(trendEnd);
+    prevYearEnd.setFullYear(prevYearEnd.getFullYear() - 1);
+
+    const prevYearCount = await prisma.ticket.count({
+      where: { status: 'COMPLETED', completedAt: { gte: prevYearStart, lte: prevYearEnd } }
+    });
+
+    const currentCount = trendTickets.length;
+    const pctChange = prevYearCount > 0
+      ? Math.round(((currentCount - prevYearCount) / prevYearCount) * 100)
+      : (currentCount > 0 ? 100 : 0);
+
+    const advanced = {
+      noShow: noShowCount,
+      postponed: postponedCount,
+      avgSkipCount,
+      priorityBreakdown,
+      busiestHours,
+      yoy: { current: currentCount, previous: prevYearCount, pctChange }
+    };
+
     res.json({
       office: officeStats,
       trend,
-      employees: employeeStats
+      employees: employeeStats,
+      advanced
     });
   } catch (error) {
     console.error("Stats Error:", error);

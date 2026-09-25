@@ -40,7 +40,7 @@ export default function Layout({ user, onLogout }) {
   useEffect(() => {
     localStorage.setItem('lastSettingsTab', settingsTab);
   }, [settingsTab]);
-  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '', autoBalanceThreshold: 15 });
+  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '', autoBalanceThreshold: 15, autoAdaptive: false });
   const logoInputRef = useRef(null);
   
   // Account Settings
@@ -94,7 +94,8 @@ export default function Layout({ user, onLogout }) {
             autoBalanceThreshold: s.autoBalanceThreshold || 15,
             zipperRatio: s.zipperRatio || 3,
             agingRate: s.agingRate || 0.1,
-            skipLimit: s.skipLimit || 5
+            skipLimit: s.skipLimit || 5,
+            autoAdaptive: s.autoAdaptive || false
           });
         }),
         api.getPriorityGroups().then(setPriorityGroups)
@@ -122,7 +123,8 @@ export default function Layout({ user, onLogout }) {
         autoBalanceThreshold: s.autoBalanceThreshold || 15,
         zipperRatio: s.zipperRatio || 3,
         agingRate: s.agingRate || 0.1,
-        skipLimit: s.skipLimit || 5
+        skipLimit: s.skipLimit || 5,
+        autoAdaptive: s.autoAdaptive || false
       }));
     });
 
@@ -134,6 +136,12 @@ export default function Layout({ user, onLogout }) {
       socket.off('settingsUpdated');
       socket.off('priorityGroupsUpdated');
     };
+  }, []);
+
+  useEffect(() => {
+    const openGlobalSettings = () => setShowSettingsModal(true);
+    window.addEventListener('openGlobalSettings', openGlobalSettings);
+    return () => window.removeEventListener('openGlobalSettings', openGlobalSettings);
   }, []);
 
   useEffect(() => {
@@ -700,6 +708,21 @@ export default function Layout({ user, onLogout }) {
                     </div>
                   </div>
 
+                  <div className="mb-8">
+                    <label className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border bg-bg-color cursor-pointer hover:border-indigo-300 transition-all">
+                      <div className="flex flex-col">
+                        <span className="font-extrabold text-text-main text-base">Auto-Adaptive Allocation</span>
+                        <span className="text-text-muted text-xs font-semibold mt-1">Automatically rebalance counter queues on the fly.</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={settingsForm.autoAdaptive || false} 
+                        onChange={e => setSettingsForm(prev => ({ ...prev, autoAdaptive: e.target.checked }))}
+                        className="w-5 h-5 accent-indigo-600 cursor-pointer" 
+                      />
+                    </label>
+                  </div>
+
                   <div className="mt-auto flex justify-end gap-3 pt-6 border-t border-slate-100">
                     <button 
                       onClick={() => {
@@ -710,7 +733,8 @@ export default function Layout({ user, onLogout }) {
                           autoBalanceThreshold: settings?.autoBalanceThreshold || 15,
                           zipperRatio: settings?.zipperRatio || 3,
                           agingRate: settings?.agingRate || 0.1,
-                          skipLimit: settings?.skipLimit || 5
+                          skipLimit: settings?.skipLimit || 5,
+                          autoAdaptive: settings?.autoAdaptive || false
                         });
                       }}
                       className="px-6 py-3 bg-transparent text-text-muted border-none rounded-xl cursor-pointer font-bold hover:bg-slate-100 dark:bg-slate-800 transition-colors"

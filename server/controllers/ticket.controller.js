@@ -474,11 +474,26 @@ const subscribeToPush = async (req, res) => {
     const ticket = await prisma.ticket.findFirst({ where: { number } });
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    // Save the subscription object as a JSON string
+    const subJson = JSON.stringify(subscription);
+
+    // Save the subscription object as a JSON string to local SQLite
     await prisma.ticket.update({
       where: { id: ticket.id },
-      data: { pushSubscription: JSON.stringify(subscription) }
+      data: { pushSubscription: subJson }
     });
+
+    // Also sync to Firebase so the notification sender can find it
+    const db = getDb();
+    if (db) {
+      try {
+        await db.collection('live_tickets').doc(ticket.id.toString()).set(
+          { pushSubscription: subJson },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Could not sync push subscription to Firebase:', err.message);
+      }
+    }
 
     res.json({ success: true });
   } catch (error) {
