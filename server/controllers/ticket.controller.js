@@ -327,33 +327,31 @@ const callTicket = async (req, res) => {
 
     socketConfig.getIo().emit('ticketCalled', ticket);
 
-    // Send Push Notification if they are subscribed!
-    if (!isRecall) {
-      try {
-        let pushSub = existingTicket.pushSubscription;
-        const db = getDb();
-        if (!pushSub && db) {
-          const docRef = await db.collection('live_tickets').doc(ticket.id.toString()).get();
-          if (docRef.exists && docRef.data().pushSubscription) {
-            pushSub = docRef.data().pushSubscription;
-          }
+    // Send Push Notification on initial call AND on recall
+    try {
+      let pushSub = existingTicket.pushSubscription;
+      const db = getDb();
+      if (!pushSub && db) {
+        const docRef = await db.collection('live_tickets').doc(ticket.id.toString()).get();
+        if (docRef.exists && docRef.data().pushSubscription) {
+          pushSub = docRef.data().pushSubscription;
         }
-        
-        if (pushSub) {
-          const sub = typeof pushSub === 'string' ? JSON.parse(pushSub) : pushSub;
-          await webpush.sendNotification(sub, JSON.stringify({
-            title: 'It is your turn!',
-            body: `Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`,
-            url: `/?ticket=${ticket.number}`,
-            ticketNumber: ticket.number
-          }));
-          
-          await prisma.ticket.update({ where: { id: ticket.id }, data: { pushSubscription: null } });
-          if (db) await db.collection('live_tickets').doc(ticket.id.toString()).set({ pushSubscription: null }, { merge: true });
-        }
-      } catch (err) {
-        console.error(`Push failed for called ticket ${ticket.number}:`, err);
       }
+      
+      if (pushSub) {
+        const sub = typeof pushSub === 'string' ? JSON.parse(pushSub) : pushSub;
+        const prefix = isRecall ? 'Reminder: ' : '';
+        await webpush.sendNotification(sub, JSON.stringify({
+          title: 'It is your turn!',
+          body: `${prefix}Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`,
+          url: `/?ticket=${ticket.number}`,
+          ticketNumber: ticket.number
+        }));
+        
+        // We no longer delete the pushSubscription here so that we can keep sending notifications on Recall.
+      }
+    } catch (err) {
+      console.error(`Push failed for called ticket ${ticket.number}:`, err);
     }
 
     // Sync to Cloud (Non-blocking) - this updates Firebase's updatedAt timestamp
