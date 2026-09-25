@@ -55,11 +55,11 @@ export default function StaffDashboard({ user }) {
         api.getPostponedTickets(),
         api.getPriorityGroups()
       ]);
-      setServices(servicesData);
-      setQueue(queueData);
-      setCurrentServingList(servingData);
-      setPostponedTickets(postponedData);
-      setPriorityGroups(priorityGroupsData);
+      setServices(Array.isArray(servicesData) ? servicesData : []);
+      setQueue(Array.isArray(queueData) ? queueData : []);
+      setCurrentServingList(Array.isArray(servingData) ? servingData : []);
+      setPostponedTickets(Array.isArray(postponedData) ? postponedData : []);
+      setPriorityGroups(Array.isArray(priorityGroupsData) ? priorityGroupsData : []);
     } catch (err) {
       console.error('Fetch failed, retrying...', err);
       if (retryCount < 3) {

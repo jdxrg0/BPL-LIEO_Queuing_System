@@ -39,14 +39,8 @@ const MobileTracker = () => {
   
   const [toastMessage, setToastMessage] = useState(null);
   
-  // Clear toast after 3s
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
+  // No auto-clear; user must click OK to dismiss.
+  
   useEffect(() => {
     myTicketResultRef.current = myTicketResult;
   }, [myTicketResult]);
@@ -930,22 +924,45 @@ const MobileTracker = () => {
         {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
       </button>
 
-      {/* Toast Notification */}
+      {/* Modal Notification */}
       <AnimatePresence>
         {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 z-[100] text-sm font-bold w-max max-w-[90vw] text-center border ${
-              toastMessage.type === 'success' 
-                ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/30' 
-                : 'bg-rose-500 text-white border-rose-600 shadow-rose-500/30'
-            }`}
-          >
-            {toastMessage.type === 'success' ? <Bell size={18} /> : <span className="font-black text-lg">!</span>}
-            {toastMessage.text}
-          </motion.div>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm flex flex-col border border-border"
+            >
+              <div className={`p-6 flex flex-col items-center text-center ${
+                toastMessage.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                  toastMessage.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-rose-100 dark:bg-rose-900/50'
+                }`}>
+                  {toastMessage.type === 'success' ? <Bell size={32} /> : <span className="font-black text-3xl">!</span>}
+                </div>
+                <h3 className="text-xl font-black text-text-main m-0 mb-2">
+                  {toastMessage.type === 'success' ? 'Success' : 'Error'}
+                </h3>
+                <p className="text-sm font-medium text-text-muted m-0">
+                  {toastMessage.text}
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-border flex justify-center">
+                <button
+                  onClick={() => setToastMessage(null)}
+                  className={`w-full py-3 rounded-xl font-bold text-white transition-colors ${
+                    toastMessage.type === 'success' 
+                      ? 'bg-emerald-500 hover:bg-emerald-600' 
+                      : 'bg-rose-500 hover:bg-rose-600'
+                  }`}
+                >
+                  OK
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

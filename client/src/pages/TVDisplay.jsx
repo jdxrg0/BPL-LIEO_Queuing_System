@@ -52,9 +52,9 @@ export default function TVDisplay() {
         api.getRecentCalled(),
         api.getLiveWaitTimes()
       ]);
-      setLiveWaitTimes(waitTimes);
+      setLiveWaitTimes(waitTimes && typeof waitTimes === 'object' ? waitTimes : {});
       
-      if (tickets.length > 0) {
+      if (Array.isArray(tickets) && tickets.length > 0) {
         const myTickets = tickets.filter(t => (t.id % totalMonitors) === (monitorIdx - 1));
         setDisplayTickets(myTickets);
       } else {

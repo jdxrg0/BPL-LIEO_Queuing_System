@@ -1,6 +1,6 @@
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
-const { autoBalanceCounters } = require('./meta.controller');
+const { scheduleAutoBalance } = require('./meta.controller');
 const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
 
 const getPostponedTickets = async (req, res) => {
@@ -170,27 +170,31 @@ const createTicket = async (req, res) => {
     const { serviceId, createdByUserId, priorityType } = req.body;
     
     const service = await prisma.service.findUnique({ where: { id: serviceId } });
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    const lastTicket = await prisma.ticket.findFirst({
-      where: { serviceId, createdAt: { gte: today } },
-      orderBy: { createdAt: 'desc' }
-    });
-    
-    let nextSeq = 1;
-    if (lastTicket && lastTicket.number) {
-      const parts = lastTicket.number.split('-');
-      if (parts.length >= 2) {
-        nextSeq = parseInt(parts[parts.length - 1], 10) + 1;
-      }
-    }
-    
+
+    // Atomically allocate the next sequence number per service/day.
+    // Prevents duplicate ticket numbers when tickets are created concurrently.
     const dateStr = String(today.getMonth() + 1).padStart(2, '0') + 
                     String(today.getDate()).padStart(2, '0') + 
                     String(today.getFullYear()).slice(-2);
-    
+
+    const counter = await prisma.ticketCounter.upsert({
+      where: {
+        serviceId_date: { serviceId, date: dateStr }
+      },
+      update: {
+        seq: { increment: 1 }
+      },
+      create: {
+        serviceId,
+        date: dateStr,
+        seq: 1
+      }
+    });
+
+    const nextSeq = counter.seq;
     const number = `${service.prefix}-${dateStr}-${String(nextSeq).padStart(3, '0')}`;
     
     // 1. Get Active Staff Profiles
@@ -241,7 +245,7 @@ const createTicket = async (req, res) => {
     socketConfig.getIo().emit('ticketCreated', ticket);
 
     if (settings?.autoAdaptive) {
-      await autoBalanceCounters(null, null);
+      scheduleAutoBalance();
     }
 
     // Sync to Cloud for Live Tracker (Non-blocking)
@@ -317,7 +321,7 @@ const callTicket = async (req, res) => {
 
       const settings = await prisma.settings.findUnique({ where: { id: 1 } });
       if (settings?.autoAdaptive) {
-        await autoBalanceCounters(null, null);
+        scheduleAutoBalance();
       }
     }
 
@@ -382,7 +386,7 @@ const updateTicketStatus = async (req, res) => {
 
     const settings = await prisma.settings.findUnique({ where: { id: 1 } });
     if (settings?.autoAdaptive) {
-      await autoBalanceCounters(null, null);
+      scheduleAutoBalance();
     }
 
     // Cloud Sync Logic

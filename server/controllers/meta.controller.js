@@ -250,6 +250,22 @@ const autoBalanceCounters = async (req, res) => {
   }
 };
 
+let autoBalanceTimer = null;
+let autoBalanceBusy = false;
+
+const scheduleAutoBalance = () => {
+  if (autoBalanceTimer || autoBalanceBusy) return;
+  autoBalanceTimer = setTimeout(() => {
+    autoBalanceTimer = null;
+    autoBalanceBusy = true;
+    autoBalanceCounters(null, null)
+      .catch(err => console.error('Auto-balance error:', err))
+      .finally(() => {
+        autoBalanceBusy = false;
+      });
+  }, 3000);
+};
+
 const getLiveWaitTimes = async (req, res) => {
   try {
     const services = await prisma.service.findMany({ where: { isActive: true } });
@@ -403,6 +419,7 @@ module.exports = {
   getSettings,
   updateSettings,
   autoBalanceCounters,
+  scheduleAutoBalance,
   getLiveWaitTimes,
   resetAllData,
   getPriorityGroups,

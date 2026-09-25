@@ -10,16 +10,31 @@ const getAuthHeaders = () => {
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
+// Shared request helper: throws on non-2xx so error payloads
+// (e.g. rate-limit 429 or 500) never flow into UI state as data.
+const request = async (url, options = {}) => {
+  const res = await fetch(url, options);
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const errData = await res.json();
+      if (errData && typeof errData.error === 'string') message = errData.error;
+    } catch {
+      // Response was not JSON; keep default message
+    }
+    throw new Error(message);
+  }
+  return res.json();
+};
+
 export const api = {
   // Auth
   login: async (username, password) => {
-    const res = await fetch(`${API_URL}/login`, {
+    const data = await request(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (!res.ok) throw new Error('Login failed');
-    const data = await res.json();
     if (data.token) {
       localStorage.setItem('token', data.token); // Store token
     }
@@ -32,88 +47,67 @@ export const api = {
 
   // Metadata
   getServices: async () => {
-    const res = await fetch(`${API_URL}/services`);
-    return res.json();
+    return request(`${API_URL}/services`);
   },
   getCounters: async () => {
-    const res = await fetch(`${API_URL}/counters`);
-    return res.json();
+    return request(`${API_URL}/counters`);
   },
   createCounter: async (name) => {
-    const res = await fetch(`${API_URL}/counters`, {
+    return request(`${API_URL}/counters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ name })
     });
-    return res.json();
   },
 
   // Users (Admin)
   getUsers: async () => {
-    const res = await fetch(`${API_URL}/users`, {
-      headers: { ...getAuthHeaders() }
-    });
-    return res.json();
+    return request(`${API_URL}/users`, { headers: { ...getAuthHeaders() } });
   },
   getUser: async (id) => {
-    const res = await fetch(`${API_URL}/users/${id}`, {
-      headers: { ...getAuthHeaders() }
-    });
-    if (!res.ok) throw new Error('User not found');
-    return res.json();
+    return request(`${API_URL}/users/${id}`, { headers: { ...getAuthHeaders() } });
   },
   createUser: async (userData) => {
-    const res = await fetch(`${API_URL}/users`, {
+    return request(`${API_URL}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(userData)
     });
-    return res.json();
   },
   updateUser: async (id, userData) => {
-    const res = await fetch(`${API_URL}/users/${id}`, {
+    return request(`${API_URL}/users/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(userData)
     });
-    if (!res.ok) throw new Error((await res.json()).error);
-    return res.json();
   },
   updateUserProfile: async (id, data) => {
-    const res = await fetch(`${API_URL}/users/${id}/profile`, {
+    return request(`${API_URL}/users/${id}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error((await res.json()).error);
-    return res.json();
   },
   changePassword: async (id, passwords) => {
-    const res = await fetch(`${API_URL}/users/${id}/change-password`, {
+    return request(`${API_URL}/users/${id}/change-password`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(passwords)
     });
-    if (!res.ok) throw new Error((await res.json()).error);
-    return res.json();
   },
   resetPassword: async (id, data) => {
-    const res = await fetch(`${API_URL}/users/${id}/reset-password`, {
+    return request(`${API_URL}/users/${id}/reset-password`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error((await res.json()).error);
-    return res.json();
   },
   deleteUser: async (id, credentials) => {
-    const res = await fetch(`${API_URL}/users/${id}`, {
+    return request(`${API_URL}/users/${id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(credentials)
     });
-    if (!res.ok) throw new Error((await res.json()).error);
-    return res.json();
   },
   getStats: async (startDate = null, endDate = null, year = null) => {
     let url = `${API_URL}/stats?`;
@@ -123,144 +117,112 @@ export const api = {
       url += `days=7`; // fallback
     }
     if (year) url += `&year=${year}`;
-    const res = await fetch(url, { headers: { ...getAuthHeaders() } });
-    return res.json();
+    return request(url, { headers: { ...getAuthHeaders() } });
   },
 
   // Queue
   getLiveWaitTimes: async () => {
-    const res = await fetch(`${API_URL}/stats/live-wait-times`);
-    return res.json();
+    return request(`${API_URL}/stats/live-wait-times`);
   },
   getWaitingQueue: async () => {
-    const res = await fetch(`${API_URL}/tickets/waiting`);
-    return res.json();
+    return request(`${API_URL}/tickets/waiting`);
   },
   getPostponedTickets: async () => {
-    const res = await fetch(`${API_URL}/tickets/postponed`);
-    return res.json();
+    return request(`${API_URL}/tickets/postponed`);
   },
   getRecentCalled: async () => {
-    const res = await fetch(`${API_URL}/tickets/recent-called`);
-    return res.json();
+    return request(`${API_URL}/tickets/recent-called`);
   },
   getMyServing: async (userId) => {
-    const res = await fetch(`${API_URL}/tickets/my-serving/${userId}`, {
-      headers: { ...getAuthHeaders() }
-    });
-    return res.json();
+    return request(`${API_URL}/tickets/my-serving/${userId}`, { headers: { ...getAuthHeaders() } });
   },
   
   // Actions
   deleteTicket: async (ticketId) => {
-    const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
+    return request(`${API_URL}/tickets/${ticketId}`, {
       method: 'DELETE',
       headers: { ...getAuthHeaders() }
     });
-    if (!res.ok) throw new Error('Failed to delete ticket');
-    return res.json();
   },
   generateTicket: async (serviceId, createdByUserId, priorityType) => {
-    const res = await fetch(`${API_URL}/tickets`, {
+    return request(`${API_URL}/tickets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ serviceId, createdByUserId, priorityType })
     });
-    return res.json();
   },
   autoBalanceCounters: async () => {
-    const res = await fetch(`${API_URL}/admin/auto-balance-counters`, {
+    return request(`${API_URL}/admin/auto-balance-counters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
     });
-    return res.json();
   },
   callTicket: async (ticketId, counterId, servedByUserId) => {
-    const res = await fetch(`${API_URL}/tickets/${ticketId}/call`, {
+    return request(`${API_URL}/tickets/${ticketId}/call`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ counterId, servedByUserId })
     });
-    return res.json();
   },
   updateStatus: async (ticketId, status) => {
-    const res = await fetch(`${API_URL}/tickets/${ticketId}/status`, {
+    return request(`${API_URL}/tickets/${ticketId}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ status })
     });
-    return res.json();
   },
   trackTicket: async (number) => {
-    const res = await fetch(`${API_URL}/tickets/track/${number}`);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to track ticket');
-    }
-    return { data: await res.json() };
+    const data = await request(`${API_URL}/tickets/track/${number}`);
+    return { data };
   },
   subscribeToPush: async (number, subscription) => {
-    const res = await fetch(`${API_URL}/tickets/track/${number}/subscribe`, {
+    return request(`${API_URL}/tickets/track/${number}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription })
     });
-    return res.json();
   },
 
   // Settings
   getSettings: async () => {
-    const res = await fetch(`${API_URL}/settings`);
-    return res.json();
+    return request(`${API_URL}/settings`);
   },
   updateSettings: async (settingsData) => {
-    const res = await fetch(`${API_URL}/settings`, {
+    return request(`${API_URL}/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(settingsData)
     });
-    if (!res.ok) throw new Error('Failed to update settings');
-    return res.json();
   },
   resetData: async () => {
-    const res = await fetch(`${API_URL}/admin/reset-data`, {
+    return request(`${API_URL}/admin/reset-data`, {
       method: 'POST',
       headers: { ...getAuthHeaders() }
     });
-    if (!res.ok) throw new Error('Failed to reset data');
-    return res.json();
   },
 
   // Priority Groups
   getPriorityGroups: async () => {
-    const res = await fetch(`${API_URL}/priority-groups`);
-    if (!res.ok) throw new Error('Failed to fetch priority groups');
-    return res.json();
+    return request(`${API_URL}/priority-groups`);
   },
   createPriorityGroup: async (data) => {
-    const res = await fetch(`${API_URL}/priority-groups`, {
+    return request(`${API_URL}/priority-groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to create priority group');
-    return res.json();
   },
   updatePriorityGroup: async (id, data) => {
-    const res = await fetch(`${API_URL}/priority-groups/${id}`, {
+    return request(`${API_URL}/priority-groups/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update priority group');
-    return res.json();
   },
   deletePriorityGroup: async (id) => {
-    const res = await fetch(`${API_URL}/priority-groups/${id}`, {
+    return request(`${API_URL}/priority-groups/${id}`, {
       method: 'DELETE',
       headers: { ...getAuthHeaders() }
     });
-    if (!res.ok) throw new Error('Failed to delete priority group');
-    return res.json();
   }
 };

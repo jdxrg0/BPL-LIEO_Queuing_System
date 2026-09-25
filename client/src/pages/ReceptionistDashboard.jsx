@@ -16,9 +16,9 @@ export default function ReceptionistDashboard({ user }) {
         api.getWaitingQueue(),
         api.getPriorityGroups()
       ]);
-      setServices(servicesData);
-      setQueue(queueData);
-      setPriorityGroups(priorityGroupsData);
+      setServices(Array.isArray(servicesData) ? servicesData : []);
+      setQueue(Array.isArray(queueData) ? queueData : []);
+      setPriorityGroups(Array.isArray(priorityGroupsData) ? priorityGroupsData : []);
     } catch (err) {
       console.error(err);
     }
@@ -26,15 +26,21 @@ export default function ReceptionistDashboard({ user }) {
 
   useEffect(() => {
     fetchData();
-    socket.on('queueUpdated', fetchData);
-    socket.on('ticketCreated', fetchData);
-    socket.on('ticketDeleted', fetchData);
-    socket.on('priorityGroupsUpdated', fetchData);
+    let debounceTimer;
+    const handleUpdate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchData(), 500);
+    };
+    socket.on('queueUpdated', handleUpdate);
+    socket.on('ticketCreated', handleUpdate);
+    socket.on('ticketDeleted', handleUpdate);
+    socket.on('priorityGroupsUpdated', handleUpdate);
     return () => {
-      socket.off('queueUpdated', fetchData);
-      socket.off('ticketCreated', fetchData);
-      socket.off('ticketDeleted', fetchData);
-      socket.off('priorityGroupsUpdated', fetchData);
+      clearTimeout(debounceTimer);
+      socket.off('queueUpdated', handleUpdate);
+      socket.off('ticketCreated', handleUpdate);
+      socket.off('ticketDeleted', handleUpdate);
+      socket.off('priorityGroupsUpdated', handleUpdate);
     };
   }, []);
 

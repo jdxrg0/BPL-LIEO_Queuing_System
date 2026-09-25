@@ -37,6 +37,7 @@ model Service {
   description String?
   isActive    Boolean  @default(true)
   tickets     Ticket[]
+  ticketCounters TicketCounter[]
 }
 
 model Counter {
@@ -92,4 +93,14 @@ model PriorityGroup {
   weight     Int    @default(1) // 0 = regular priority, 1+ = elevated priority
   slaThreshold Int?           // null means use global autoBalanceThreshold
   isActive   Boolean @default(true)
+}
+
+model TicketCounter {
+  serviceId Int
+  date      String   // "MMDDYY" segment of the ticket number
+  seq       Int      @default(0)
+
+  service   Service  @relation(fields: [serviceId], references: [id])
+
+  @@id([serviceId, date])
 }
