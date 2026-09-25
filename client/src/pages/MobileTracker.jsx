@@ -257,39 +257,33 @@ const MobileTracker = () => {
     // --- VISIBILITY CHANGE HANDLER ---
     // When the PWA returns from background (e.g., after tapping a notification),
     // Firebase WebSocket listeners are stale. Force an immediate refresh.
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') return;
+      
+      // 1. Refresh serving tickets independently
+      (async () => {
         try {
-          // Refresh serving tickets immediately
           const servingQ = query(collection(db, 'live_tickets'), where('status', '==', 'SERVING'));
           const servingSnap = await getDocs(servingQ);
           const tickets = servingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           tickets.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
           setServingTickets(tickets);
-
-          // If the user has a searched ticket, refresh its status too
-          const currentSearched = myTicketResultRef.current;
-          if (currentSearched && currentSearched.number) {
-            const ticketQ = query(collection(db, 'live_tickets'), where('number', '==', currentSearched.number));
-            const ticketSnap = await getDocs(ticketQ);
-            if (!ticketSnap.empty) {
-              const t = { id: ticketSnap.docs[0].id, ...ticketSnap.docs[0].data() };
-              setMyTicketResult(prev => {
-                if (prev && prev.status !== t.status) {
-                  if (t.status === 'SERVING') triggerFlash(t.id.toString());
-                }
-                return { ...prev, ...t };
-              });
-            } else if (currentSearched.status === 'SERVING' || currentSearched.status === 'WAITING') {
-              setMyTicketResult(prev => ({ ...prev, status: 'COMPLETED', peopleAhead: 0 }));
-            }
-          }
         } catch (err) {
-          console.warn('Visibility refresh failed:', err.message);
+          console.warn('Visibility serving refresh failed:', err.message);
         }
+      })();
+
+      // 2. Refresh the searched ticket independently
+      // Re-running startTicketSearch forces a fresh Firebase snapshot listener,
+      // which bypasses stale caches much faster than getDocs.
+      const currentSearched = myTicketResultRef.current;
+      if (currentSearched && currentSearched.number) {
+        startTicketSearch(currentSearched.number, true); // true = background refresh (no loading screen)
       }
     };
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
 
     return () => {
       unsubscribe();
@@ -319,9 +313,11 @@ const MobileTracker = () => {
   }, [servingTickets, myTicketResult]);
 
   // Extracted search logic so it can be called from both handleSearch and auto-restore
-  const startTicketSearch = (fullTicketNumber) => {
-    setIsSearching(true);
-    setMyTicketResult(null);
+  const startTicketSearch = (fullTicketNumber, isBackgroundRefresh = false) => {
+    if (!isBackgroundRefresh) {
+      setIsSearching(true);
+      setMyTicketResult(null);
+    }
 
     if (unsubscribeSearchRef.current) unsubscribeSearchRef.current();
     if (unsubscribeWaitQRef.current) unsubscribeWaitQRef.current();

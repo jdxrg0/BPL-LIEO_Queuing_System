@@ -50,7 +50,7 @@ export default function HeroMetrics({ office, spark, yoy }) {
         <KpiCard
           key={kpi.key}
           {...kpi}
-          value={office[kpi.key].toLocaleString()}
+          value={(office[kpi.key] || 0).toLocaleString()}
           spark={spark?.[kpi.key]}
           delta={kpi.key === 'total' ? delta : null}
           sparkId={kpi.key}

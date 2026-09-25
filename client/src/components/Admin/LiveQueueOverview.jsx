@@ -20,7 +20,7 @@ export default function LiveQueueOverview({ liveWaitTimes, waitingCounts, servin
           <span className="ml-2 text-xs font-bold text-text-muted bg-bg-color px-2 py-1 rounded-lg border border-border">
             {totalWaiting} waiting
           </span>
-          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
+          <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
             {servingTickets.length} serving
           </span>
         </div>
@@ -59,7 +59,7 @@ export default function LiveQueueOverview({ liveWaitTimes, waitingCounts, servin
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase border ${SERVICE_STYLES[t.service?.prefix]?.badge || 'border-border text-text-muted'}`}>{t.service?.prefix}</span>
                 {t.counter?.name && <span className="text-xs font-bold text-text-muted">{t.counter.name}</span>}
                 {t.priorityType && t.priorityType !== 'REGULAR' && (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-100">{t.priorityType}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20">{t.priorityType}</span>
                 )}
               </div>
             ))}

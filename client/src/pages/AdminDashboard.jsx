@@ -4,16 +4,24 @@ import { Printer, Settings, RefreshCw, UserPlus, FileText } from 'lucide-react';
 
 import AddEmployeeModal from '../components/Modals/AddEmployeeModal';
 import EditUserModal from '../components/Modals/EditUserModal';
-import SummaryCards from '../components/Admin/SummaryCards';
-import LiveQueueOverview from '../components/Admin/LiveQueueOverview';
-import TicketsChartCard from '../components/Admin/TicketsChartCard';
-import AdvancedAnalyticsSection from '../components/Admin/AdvancedAnalyticsSection';
-import EmployeeTable from '../components/Admin/EmployeeTable';
+import AdminTabBar from '../components/Admin/AdminTabBar';
+import OverviewTab from '../components/Admin/OverviewTab';
+import LiveQueueTab from '../components/Admin/LiveQueueTab';
+import AnalyticsTab from '../components/Admin/AnalyticsTab';
+import StaffTab from '../components/Admin/StaffTab';
 import PrintTicketsModal from '../components/Admin/PrintTicketsModal';
 import GlobalPopup from '../components/Admin/GlobalPopup';
 
+const ACTION_ICONS = [
+  { key: 'autoBalance', label: 'Auto-Balance', icon: <RefreshCw size={16} /> },
+  { key: 'printReport', label: 'Print Report', icon: <FileText size={16} /> },
+  { key: 'settings', label: 'Settings', icon: <Settings size={16} /> },
+  { key: 'printTickets', label: 'Print Tickets', icon: <Printer size={16} /> }
+];
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -138,6 +146,23 @@ export default function AdminDashboard() {
     window.open(`/print-stats?startDate=${trendStart}&endDate=${trendEnd}&year=${filterYear}`, '_blank');
   };
 
+  const handleAction = (key) => {
+    if (key === 'autoBalance') {
+      api.autoBalanceCounters()
+        .then((res) => {
+          showPopup('Success', res.message, 'success');
+          fetchData();
+        })
+        .catch(() => showPopup('Error', 'Failed to auto-balance counters.', 'error'));
+    } else if (key === 'printReport') {
+      handlePrint();
+    } else if (key === 'settings') {
+      window.dispatchEvent(new Event('openGlobalSettings'));
+    } else if (key === 'printTickets') {
+      setIsPrintModalOpen(true);
+    }
+  };
+
   const originalUser = useMemo(() => {
     return stats?.employees.find(u => u?.id === editingUser?.id);
   }, [stats, editingUser?.id]);
@@ -155,7 +180,7 @@ export default function AdminDashboard() {
     <div className="container py-4 max-w-[1400px] mx-auto px-6 lg:px-12">
 
       {/* Header */}
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-slide-up">
+      <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-slide-up">
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-text-main mb-1">Office Overview</h1>
@@ -176,40 +201,22 @@ export default function AdminDashboard() {
 
           <div className="h-6 w-px bg-border mx-1 hidden md:block"></div>
 
+          <div className="flex items-center gap-1.5">
+            {ACTION_ICONS.map(btn => (
+              <button
+                key={btn.key}
+                title={btn.label}
+                aria-label={btn.label}
+                onClick={() => handleAction(btn.key)}
+                className="flex items-center justify-center w-9 h-9 rounded-lg bg-surface text-text-muted border border-border hover:bg-bg-color hover:text-indigo-600 hover:shadow-sm transition-all cursor-pointer"
+              >
+                {btn.icon}
+              </button>
+            ))}
+          </div>
+
           <button
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
-            onClick={async () => {
-              try {
-                const res = await api.autoBalanceCounters();
-                showPopup("Success", res.message, "success");
-                fetchData();
-              } catch (err) {
-                showPopup("Error", "Failed to auto-balance counters.", "error");
-              }
-            }}
-          >
-            <RefreshCw size={14} className="text-indigo-600" /> Auto-Balance
-          </button>
-          <button
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
-            onClick={handlePrint}
-          >
-            <FileText size={14} className="text-indigo-600" /> Print Report
-          </button>
-          <button
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
-            onClick={() => window.dispatchEvent(new Event('openGlobalSettings'))}
-          >
-            <Settings size={14} className="text-indigo-600" /> Settings
-          </button>
-          <button
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
-            onClick={() => setIsPrintModalOpen(true)}
-          >
-            <Printer size={14} className="text-indigo-600" /> Print Tickets
-          </button>
-          <button
-            className="flex items-center gap-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ml-1 shrink-0"
+            className="flex items-center gap-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-3.5 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ml-1 shrink-0"
             onClick={() => setIsModalOpen(true)}
           >
             <UserPlus size={14} /> Add Employee
@@ -217,39 +224,42 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <SummaryCards office={stats.office} />
+      {/* Tab Bar */}
+      <AdminTabBar active={activeTab} onChange={setActiveTab} />
 
-      {/* Live Queue Overview */}
-      <LiveQueueOverview
-        liveWaitTimes={liveWaitTimes}
-        waitingCounts={waitingCounts}
-        servingTickets={servingTickets}
-      />
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <OverviewTab
+          stats={stats}
+          trendStart={trendStart}
+          trendEnd={trendEnd}
+          onStartChange={setTrendStart}
+          onEndChange={setTrendEnd}
+        />
+      )}
 
-      {/* Trend Chart */}
-      <TicketsChartCard
-        trend={stats.trend}
-        trendStart={trendStart}
-        trendEnd={trendEnd}
-        onStartChange={setTrendStart}
-        onEndChange={setTrendEnd}
-      />
+      {activeTab === 'live' && (
+        <LiveQueueTab
+          liveWaitTimes={liveWaitTimes}
+          waitingCounts={waitingCounts}
+          servingTickets={servingTickets}
+        />
+      )}
 
-      {/* Advanced Analytics (collapsed by default) */}
-      {stats.advanced && (
-        <AdvancedAnalyticsSection
+      {activeTab === 'analytics' && stats.advanced && (
+        <AnalyticsTab
           advanced={stats.advanced}
           year={stats.office.year}
         />
       )}
 
-      {/* Employee Statistics Table */}
-      <EmployeeTable
-        employees={stats.employees}
-        year={stats.office.year}
-        onEdit={setEditingUser}
-      />
+      {activeTab === 'staff' && (
+        <StaffTab
+          employees={stats.employees}
+          year={stats.office.year}
+          onEdit={setEditingUser}
+        />
+      )}
 
       {/* Extracted Modals */}
       <AddEmployeeModal

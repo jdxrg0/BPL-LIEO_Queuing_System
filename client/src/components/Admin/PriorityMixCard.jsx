@@ -23,7 +23,7 @@ export default function PriorityMixCard({ priorityBreakdown }) {
           <div key={item.type} className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-text-main">{item.label}</span>
-              <span className="text-xs font-black text-indigo-600">{item.count.toLocaleString()} · {Math.round((item.count / totalCount) * 100)}%</span>
+              <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{item.count.toLocaleString()} · {Math.round((item.count / totalCount) * 100)}%</span>
             </div>
             <div className="h-2.5 rounded-full bg-bg-color overflow-hidden border border-border/50">
               <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${(item.count / maxCount) * 100}%` }} />
