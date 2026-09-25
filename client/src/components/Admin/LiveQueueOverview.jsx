@@ -37,7 +37,7 @@ export default function LiveQueueOverview({ liveWaitTimes, waitingCounts, servin
             <div className="flex items-end justify-between relative z-10">
               <span className={`text-3xl font-black tracking-tighter ${style.text}`}>{waitingCounts[prefix] || 0}</span>
               <span className="text-xs font-bold text-text-muted mb-1">
-                {liveWaitTimes && liveWaitTimes[prefix] !== undefined ? `~${liveWaitTimes[prefix]} min wait` : 'calculating…'}
+                {liveWaitTimes && liveWaitTimes[prefix] != null ? `~${liveWaitTimes[prefix]} min wait` : 'no staff'}
               </span>
             </div>
           </div>

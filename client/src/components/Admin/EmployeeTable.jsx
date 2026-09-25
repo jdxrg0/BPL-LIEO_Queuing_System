@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Lock } from 'lucide-react';
 
 const ROLE_PILLS = {
   ADMIN: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400',
@@ -105,6 +105,11 @@ export default function EmployeeTable({ employees, year, onEdit }) {
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${ROLE_PILLS[emp.role] || ROLE_PILLS.STAFF}`}>
                             {emp.role}
                           </span>
+                          {emp.autoAssign === false && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400" title="Excluded from auto-allocation; assignments stay manual">
+                              <Lock size={9} /> Manual
+                            </span>
+                          )}
                           {emp.counter?.name && (
                             <span className="text-[10px] font-semibold text-text-muted">Window {emp.counter.name.replace('Window ', '')}</span>
                           )}

@@ -5,7 +5,7 @@ const socketConfig = require('../config/socket');
 const getUsers = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, username: true, name: true, role: true, createdAt: true, counterId: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, profilePictureBase64: true }
+      select: { id: true, username: true, name: true, role: true, createdAt: true, counterId: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true }
     });
     res.json(users);
   } catch (error) {
@@ -20,7 +20,7 @@ const getUserById = async (req, res) => {
       include: { counter: true }
     });
     if (user) {
-      res.json({ id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement, profilePictureBase64: user.profilePictureBase64 });
+      res.json({ id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement, autoAssign: user.autoAssign, profilePictureBase64: user.profilePictureBase64 });
     } else {
       res.status(404).json({ error: 'User not found' });
     }
@@ -31,7 +31,7 @@ const getUserById = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { username, password, name, role, windowNumber, caterNew, caterRenewal, caterRetirement } = req.body;
+    const { username, password, name, role, windowNumber, caterNew, caterRenewal, caterRetirement, autoAssign } = req.body;
     
     let finalCounterId = null;
     if (windowNumber) {
@@ -56,7 +56,8 @@ const createUser = async (req, res) => {
         counterId: finalCounterId,
         caterNew: caterNew !== undefined ? caterNew : true,
         caterRenewal: caterRenewal !== undefined ? caterRenewal : true,
-        caterRetirement: caterRetirement !== undefined ? caterRetirement : true
+        caterRetirement: caterRetirement !== undefined ? caterRetirement : true,
+        autoAssign: autoAssign !== undefined ? autoAssign : true
       }
     });
     res.json({ id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId });
@@ -69,7 +70,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { windowNumber, role, name, username, currentPassword, caterNew, caterRenewal, caterRetirement } = req.body;
+    const { windowNumber, role, name, username, currentPassword, caterNew, caterRenewal, caterRetirement, autoAssign } = req.body;
     
     const userRecord = await prisma.user.findUnique({ where: { id: parseInt(id) } });
     if (!userRecord) {
@@ -95,6 +96,7 @@ const updateUser = async (req, res) => {
     if (caterNew !== undefined) updateData.caterNew = caterNew;
     if (caterRenewal !== undefined) updateData.caterRenewal = caterRenewal;
     if (caterRetirement !== undefined) updateData.caterRetirement = caterRetirement;
+    if (autoAssign !== undefined) updateData.autoAssign = autoAssign;
 
     if (windowNumber !== undefined) {
       if (windowNumber) {
@@ -115,7 +117,7 @@ const updateUser = async (req, res) => {
       include: { counter: true }
     });
     
-    const updatedUser = { id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement };
+    const updatedUser = { id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement, autoAssign: user.autoAssign };
     socketConfig.getIo().emit('userUpdated', updatedUser);
     
     res.json(updatedUser);
@@ -181,7 +183,7 @@ const updateUserProfile = async (req, res) => {
       include: { counter: true }
     });
 
-    const safeUser = { id: updatedUser.id, username: updatedUser.username, name: updatedUser.name, role: updatedUser.role, counterId: updatedUser.counterId, counter: updatedUser.counter, caterNew: updatedUser.caterNew, caterRenewal: updatedUser.caterRenewal, caterRetirement: updatedUser.caterRetirement, profilePictureBase64: updatedUser.profilePictureBase64 };
+    const safeUser = { id: updatedUser.id, username: updatedUser.username, name: updatedUser.name, role: updatedUser.role, counterId: updatedUser.counterId, counter: updatedUser.counter, caterNew: updatedUser.caterNew, caterRenewal: updatedUser.caterRenewal, caterRetirement: updatedUser.caterRetirement, autoAssign: updatedUser.autoAssign, profilePictureBase64: updatedUser.profilePictureBase64 };
     socketConfig.getIo().emit('userUpdated', safeUser);
 
     res.json(safeUser);

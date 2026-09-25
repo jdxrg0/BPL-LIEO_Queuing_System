@@ -31,7 +31,23 @@ function calculateSmartScores(tickets, priorityGroups, settings, recentTickets) 
   const now = Date.now();
   const agingRate = settings.agingRate || 0;
   const skipLimit = settings.skipLimit || 5;
-  const globalSla = settings.autoBalanceThreshold || 15;
+  const globalSla = settings.slaThreshold || settings.autoBalanceThreshold || 15;
+
+  // Zipper Force targets ONLY the oldest REGULAR ticket in each zippered
+  // service. Boosting every regular at once lets a priority burst carpet-bomb
+  // the whole queue (even fresh regulars leapfrog +500 stoplight tickets), then
+  // collapse on the next recompute. Granting the +1000 to a single ticket keeps
+  // the floor precise: exactly the next-in-line regular breaks through.
+  const oldestRegularByService = {};
+  tickets.forEach(t => {
+    if (t.priorityType === 'REGULAR' && zipperBoosts[String(t.serviceId)]) {
+      const key = String(t.serviceId);
+      const existing = oldestRegularByService[key];
+      if (!existing || new Date(t.createdAt) < new Date(existing.createdAt)) {
+        oldestRegularByService[key] = t;
+      }
+    }
+  });
 
   tickets.forEach(t => {
     const isRegular = t.priorityType === 'REGULAR';
@@ -61,7 +77,7 @@ function calculateSmartScores(tickets, priorityGroups, settings, recentTickets) 
     }
 
     // Zipper Force (+1000 to the oldest regular ticket if zipper triggered)
-    if (isRegular && zipperBoosts[String(t.serviceId)]) {
+    if (isRegular && zipperBoosts[String(t.serviceId)] && oldestRegularByService[String(t.serviceId)] === t) {
       score += 1000;
     }
 
@@ -111,8 +127,15 @@ function calculatePredictiveWaitTime(
   // Find rank (1-indexed)
   const trueRank = sortedPhantomQueue.findIndex(t => t.id === -1) + 1;
 
+  // No active staff for the service -> wait time is undetermined. Return null
+  // instead of pretending a single clerk exists (the old max(1, ...) floor made a
+  // staffless queue look like a 1-clerk queue with a finite, optimistic ETA).
+  if (activeCounters <= 0) {
+    return null;
+  }
+
   // Calculate Final Predictive Wait Time
-  return Math.round((trueRank / Math.max(1, activeCounters)) * avgServiceTimeMins);
+  return Math.round((trueRank / activeCounters) * avgServiceTimeMins);
 }
 
 module.exports = { calculateSmartScores, calculatePredictiveWaitTime };

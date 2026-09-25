@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api, socket } from '../api';
+import { getServiceSlots } from '../utils/serviceSlots';
+
+const TV_BADGES = [
+  'text-emerald-400 bg-emerald-400/20 border-emerald-400/30',
+  'text-indigo-400 bg-indigo-400/20 border-indigo-400/30',
+  'text-rose-400 bg-rose-400/20 border-rose-400/30'
+];
 
 export default function TVDisplay() {
   const [displayTickets, setDisplayTickets] = useState([]);
@@ -8,6 +15,9 @@ export default function TVDisplay() {
   const [isLoading, setIsLoading] = useState(true);
   const [liveWaitTimes, setLiveWaitTimes] = useState({});
   const [priorityGroups, setPriorityGroups] = useState([]);
+  const [services, setServices] = useState([]);
+
+  const serviceSlots = useMemo(() => getServiceSlots(services), [services]);
 
   // Parse Multi-Monitor URL Parameters
   const searchParams = new URLSearchParams(window.location.search);
@@ -69,7 +79,8 @@ export default function TVDisplay() {
     Promise.all([
       fetchRecent(),
       api.getSettings().then(setSettings),
-      api.getPriorityGroups().then(setPriorityGroups)
+      api.getPriorityGroups().then(setPriorityGroups),
+      api.getServices().then(setServices)
     ])
     .catch(console.error)
     .finally(() => setIsLoading(false));
@@ -206,18 +217,14 @@ export default function TVDisplay() {
           LIVE QUEUE STATUS
         </div>
         <div className="flex-1 whitespace-nowrap flex items-center px-[2vw] text-[2.5vh] font-bold text-slate-300 gap-[4vw] marquee-animation">
-          <span className="flex items-center gap-[1vw]">
-            <span className="text-emerald-400 bg-emerald-400/20 px-2 py-0.5 rounded border border-emerald-400/30">New App</span>
-            ~{liveWaitTimes['NW'] || 0} mins
-          </span>
-          <span className="flex items-center gap-[1vw]">
-            <span className="text-indigo-400 bg-indigo-400/20 px-2 py-0.5 rounded border border-indigo-400/30">Renewal</span>
-            ~{liveWaitTimes['RNW'] || 0} mins
-          </span>
-          <span className="flex items-center gap-[1vw]">
-            <span className="text-rose-400 bg-rose-400/20 px-2 py-0.5 rounded border border-rose-400/30">Retirement</span>
-            ~{liveWaitTimes['R'] || 0} mins
-          </span>
+          {serviceSlots.map((slot, index) => (
+            <span key={slot.service.id} className="flex items-center gap-[1vw]">
+              <span className={`px-2 py-0.5 rounded border ${TV_BADGES[index]}`}>{slot.service.name}</span>
+              {liveWaitTimes[slot.service.prefix] != null
+                ? `~${liveWaitTimes[slot.service.prefix]} mins`
+                : 'No staff on duty'}
+            </span>
+          ))}
         </div>
       </div>
     </div>

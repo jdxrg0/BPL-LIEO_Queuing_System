@@ -5,7 +5,7 @@ import ModalWrapper from './ModalWrapper';
 export default function AddEmployeeModal({ isOpen, onClose, onSuccess, showPopup }) {
   const [newUser, setNewUser] = useState({
     name: '', username: '', password: '', role: 'STAFF', windowNumber: 1,
-    caterNew: true, caterRenewal: true, caterRetirement: true
+    caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true
   });
 
   const handleAddUser = async (e) => {
@@ -13,7 +13,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onSuccess, showPopup
     if (!newUser.name || !newUser.username || !newUser.password || !newUser.windowNumber) return;
     try {
       await api.createUser(newUser);
-      setNewUser({ name: '', username: '', password: '', role: 'STAFF', windowNumber: 1, caterNew: true, caterRenewal: true, caterRetirement: true });
+      setNewUser({ name: '', username: '', password: '', role: 'STAFF', windowNumber: 1, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true });
       showPopup("Success", "Account created successfully!", "success");
       onSuccess();
     } catch (err) {
@@ -67,6 +67,15 @@ export default function AddEmployeeModal({ isOpen, onClose, onSuccess, showPopup
               <label className="block text-sm mb-1 font-medium text-text-main">Password</label>
               <input type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full p-3 rounded-md border border-border bg-surface text-text-main focus:border-primary outline-none transition-colors" required />
             </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-bg-color">
+            <div>
+              <label className="block text-sm font-semibold text-text-main">Allow Auto-Reallocation</label>
+              <p className="text-xs text-text-muted mb-0 mt-0.5 leading-relaxed">When ON, the auto-balancer may reassign this employee's transactions. Turn OFF to keep their manual assignments untouched.</p>
+            </div>
+            <button type="button" onClick={() => setNewUser({...newUser, autoAssign: !newUser.autoAssign})} className={`shrink-0 px-5 py-2 rounded border font-bold text-sm cursor-pointer transition-colors ${newUser.autoAssign ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-surface border-border text-text-muted'}`}>
+              {newUser.autoAssign ? 'Auto-Reallocate: ON' : 'Auto-Reallocate: OFF'}
+            </button>
           </div>
           <button type="submit" className="btn btn-primary mt-4 p-4 text-lg font-bold bg-primary text-white border-none rounded-lg hover:bg-primary-hover cursor-pointer transition-colors">Create Account</button>
         </form>

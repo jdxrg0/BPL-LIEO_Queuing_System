@@ -19,6 +19,7 @@ model User {
   caterNew        Boolean @default(true)
   caterRenewal    Boolean @default(true)
   caterRetirement Boolean @default(true)
+  autoAssign      Boolean @default(true)
 
   // Relations
   ticketsCreated Ticket[] @relation("TicketCreator")
@@ -33,7 +34,7 @@ model User {
 model Service {
   id          Int      @id @default(autoincrement())
   name        String   // "New Application", "Renewal", "Retirement"
-  prefix      String   // "N", "R", "C"
+  prefix      String   // "NW", "RNW", "R"
   description String?
   isActive    Boolean  @default(true)
   tickets     Ticket[]
@@ -80,6 +81,7 @@ model Settings {
   logoBase64           String?
   autoAdaptive         Boolean @default(false)
   autoBalanceThreshold Int     @default(15)
+  slaThreshold         Int     @default(15)
   zipperRatio          Int     @default(3)
   agingRate            Float   @default(0.1)
   skipLimit            Int     @default(5)

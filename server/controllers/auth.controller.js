@@ -48,6 +48,7 @@ const login = async (req, res) => {
         caterNew: user.caterNew,
         caterRenewal: user.caterRenewal,
         caterRetirement: user.caterRetirement,
+        autoAssign: user.autoAssign,
         profilePictureBase64: user.profilePictureBase64
       });
     } else {

@@ -40,7 +40,7 @@ export default function Layout({ user, onLogout }) {
   useEffect(() => {
     localStorage.setItem('lastSettingsTab', settingsTab);
   }, [settingsTab]);
-  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '', autoBalanceThreshold: 15, autoAdaptive: false });
+  const [settingsForm, setSettingsForm] = useState({ websiteName: '', logoBase64: '', autoBalanceThreshold: 15, slaThreshold: 15, autoAdaptive: false });
   const logoInputRef = useRef(null);
   
   // Account Settings
@@ -92,6 +92,7 @@ export default function Layout({ user, onLogout }) {
             websiteName: s.websiteName || '', 
             logoBase64: s.logoBase64 || '', 
             autoBalanceThreshold: s.autoBalanceThreshold || 15,
+            slaThreshold: s.slaThreshold || 15,
             zipperRatio: s.zipperRatio || 3,
             agingRate: s.agingRate || 0.1,
             skipLimit: s.skipLimit || 5,
@@ -121,6 +122,7 @@ export default function Layout({ user, onLogout }) {
         websiteName: s.websiteName || '', 
         logoBase64: s.logoBase64 || '', 
         autoBalanceThreshold: s.autoBalanceThreshold || 15,
+        slaThreshold: s.slaThreshold || 15,
         zipperRatio: s.zipperRatio || 3,
         agingRate: s.agingRate || 0.1,
         skipLimit: s.skipLimit || 5,
@@ -673,8 +675,8 @@ export default function Layout({ user, onLogout }) {
                   </div>
 
                   <div className="mb-8">
-                    <label className="block mb-2 font-bold text-sm text-text-main uppercase tracking-wider">Auto-Balance Panic Threshold (Minutes)</label>
-                    <p className="text-text-muted text-sm font-medium mb-3 mt-0 leading-relaxed">If the estimated wait time exceeds this threshold, the system automatically intervenes and reallocates all windows to the bottleneck.</p>
+                    <label className="block mb-2 font-bold text-sm text-text-main uppercase tracking-wider">Counter Reallocation Threshold (Minutes)</label>
+                    <p className="text-text-muted text-sm font-medium mb-3 mt-0 leading-relaxed">Workload panic threshold. If the backlog on the busiest service (waiting demand x average service time) exceeds this, counters switch to single-service "crunch" mode and are reallocated to the bottleneck.</p>
                     <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
                       <input 
                         type="range" 
@@ -686,6 +688,23 @@ export default function Layout({ user, onLogout }) {
                         className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                       />
                       <span className="font-extrabold text-indigo-600 dark:text-indigo-400 w-12 text-right text-lg">{settingsForm.autoBalanceThreshold}m</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block mb-2 font-bold text-sm text-text-main uppercase tracking-wider">Ticket SLA Panic Threshold (Minutes)</label>
+                    <p className="text-text-muted text-sm font-medium mb-3 mt-0 leading-relaxed">How long a ticket may wait before the smart queue gives it a large priority boost. The auto-allocation starvation override triggers at 3x this value (default 15m = 45m).</p>
+                    <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="60" 
+                        step="5"
+                        value={settingsForm.slaThreshold}
+                        onChange={e => setSettingsForm(prev => ({ ...prev, slaThreshold: parseInt(e.target.value) }))}
+                        className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <span className="font-extrabold text-indigo-600 dark:text-indigo-400 w-12 text-right text-lg">{settingsForm.slaThreshold}m</span>
                     </div>
                   </div>
 
@@ -731,6 +750,7 @@ export default function Layout({ user, onLogout }) {
                           websiteName: settings?.websiteName || '', 
                           logoBase64: settings?.logoBase64 || '', 
                           autoBalanceThreshold: settings?.autoBalanceThreshold || 15,
+                          slaThreshold: settings?.slaThreshold || 15,
                           zipperRatio: settings?.zipperRatio || 3,
                           agingRate: settings?.agingRate || 0.1,
                           skipLimit: settings?.skipLimit || 5,

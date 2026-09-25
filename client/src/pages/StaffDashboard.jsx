@@ -5,6 +5,7 @@ import HoldActionBtn from '../components/Buttons/HoldActionBtn';
 import HoldButton from '../components/Buttons/HoldButton';
 import HoldTextButton from '../components/Buttons/HoldTextButton';
 import ModalWrapper from '../components/Modals/ModalWrapper';
+import { getServiceSlots, DEFAULT_SLOT_STYLE } from '../utils/serviceSlots';
 
 export default function StaffDashboard({ user }) {
   const [services, setServices] = useState([]);
@@ -16,6 +17,7 @@ export default function StaffDashboard({ user }) {
   const [popupMessage, setPopupMessage] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
   const lastCaterPrefixRef = useRef(undefined);
+  const servicesRef = useRef([]);
   
   const scrollContainerRef = useRef(null);
 
@@ -56,6 +58,7 @@ export default function StaffDashboard({ user }) {
         api.getPriorityGroups()
       ]);
       setServices(Array.isArray(servicesData) ? servicesData : []);
+      servicesRef.current = Array.isArray(servicesData) ? servicesData : [];
       setQueue(Array.isArray(queueData) ? queueData : []);
       setCurrentServingList(Array.isArray(servingData) ? servingData : []);
       setPostponedTickets(Array.isArray(postponedData) ? postponedData : []);
@@ -99,9 +102,8 @@ export default function StaffDashboard({ user }) {
       }
       
       let serviceName = "All Services";
-      if (maxPrefix === 'NW') serviceName = "New Applications";
-      if (maxPrefix === 'RNW') serviceName = "Renewals";
-      if (maxPrefix === 'R') serviceName = "Retirements";
+      const targetService = servicesRef.current.find(s => s.prefix === maxPrefix);
+      if (targetService) serviceName = targetService.name;
       
       setToastMessage({
         title: "High Traffic Alert",
@@ -165,24 +167,30 @@ export default function StaffDashboard({ user }) {
     }
   };
 
-  const newAppQueue = useMemo(() => queue.filter(t => t.service.name === 'New Application'), [queue]);
-  const renewalQueue = useMemo(() => queue.filter(t => t.service.name === 'Renewal'), [queue]);
-  const retirementQueue = useMemo(() => queue.filter(t => t.service.name === 'Retirement'), [queue]);
+  const serviceSlots = useMemo(() => getServiceSlots(services), [services]);
+  const styleByPrefix = useMemo(() => {
+    const map = {};
+    getServiceSlots(services).forEach(slot => { map[slot.service.prefix] = slot.style; });
+    return map;
+  }, [services]);
+  const queuesBySlot = useMemo(() => serviceSlots.map(slot => ({
+    ...slot,
+    tickets: queue.filter(t => t.service?.id === slot.service.id)
+  })), [serviceSlots, queue]);
 
-  const renderQueueList = (title, filteredQueue, themeColors) => {
+  const renderQueueList = (slot, filteredQueue) => {
     
-    let isCatered = false;
-    if (user) {
-      const lower = title.toLowerCase();
-      if (lower.includes('renew') && user.caterRenewal) isCatered = true;
-      if (lower.includes('new') && !lower.includes('renew') && user.caterNew) isCatered = true;
-      if (lower.includes('retire') && user.caterRetirement) isCatered = true;
-    }
+    const themeColors = {
+      text: slot.style.text,
+      border: slot.style.border,
+      bgFill: slot.style.bgFill
+    };
+    const isCatered = user ? !!user[slot.flag] : false;
     
     return (
       <div className={`flex-1 min-h-0 flex flex-col p-3 bg-surface border ${themeColors.border} rounded-2xl shadow-sm transition-all duration-300 ${isCatered ? 'opacity-100 hover:shadow-md' : 'opacity-50 grayscale'}`}>
         <div className="flex justify-between items-center mb-2">
-          <h4 className={`${themeColors.text} m-0 text-base font-bold tracking-tight`}>{title}</h4>
+          <h4 className={`${themeColors.text} m-0 text-base font-bold tracking-tight`}>{slot.service.name}</h4>
           <span className={`bg-surface ${themeColors.text} px-2 py-0.5 rounded-md text-xs font-extrabold border ${themeColors.border} shadow-sm`}>
             {filteredQueue.length}
           </span>
@@ -271,12 +279,8 @@ export default function StaffDashboard({ user }) {
           ) : (
             currentServingList.map((ticket, i) => {
               const colors = (() => {
-                switch(ticket.service.prefix) {
-                  case 'NW': return { bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', grad: 'from-emerald-500 to-emerald-600' };
-                  case 'RNW': return { bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'border-indigo-200 dark:border-indigo-500/20', text: 'text-indigo-700 dark:text-indigo-400', grad: 'from-indigo-500 to-violet-600' };
-                  case 'R': return { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-500/20', text: 'text-rose-700 dark:text-rose-400', grad: 'from-rose-500 to-red-600' };
-                  default: return { bg: 'bg-bg-color dark:bg-slate-500/10', border: 'border-slate-200 dark:border-slate-500/20', text: 'text-slate-700 dark:text-slate-400', grad: 'from-slate-500 to-slate-600' };
-                }
+                const style = styleByPrefix[ticket.service?.prefix] || DEFAULT_SLOT_STYLE;
+                return { bg: style.bg, border: style.border, text: style.text, grad: style.grad };
               })();
               
               return (
@@ -337,9 +341,7 @@ export default function StaffDashboard({ user }) {
         <h3 className="mb-2 shrink-0 text-xl font-extrabold text-text-main tracking-tight m-0">Waiting Queue</h3>
         
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 flex-1 min-h-0">
-          {renderQueueList('New Application', newAppQueue, { text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/20', bgFill: '#059669', glow: 'glow-emerald' })}
-          {renderQueueList('Renewal', renewalQueue, { text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-500/20', bgFill: '#4f46e5', glow: 'glow-indigo' })}
-          {renderQueueList('Retirement', retirementQueue, { text: 'text-rose-700 dark:text-rose-400', border: 'border-rose-200 dark:border-rose-500/20', bgFill: '#e11d48', glow: 'glow-rose' })}
+          {queuesBySlot.map(slot => renderQueueList(slot, slot.tickets))}
         </div>
       </div>
 

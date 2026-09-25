@@ -98,4 +98,32 @@ describe('Smart Queue Engine - Core Sorting Algorithms', () => {
     expect(sorted[1].id).toBe(2); // Stoplight (+500) is second
     expect(sorted[2].id).toBe(1); // Panic SLA (+100) is third
   });
+
+  test('6. Priority Burst Floor Test: Zipper boosts ONLY the oldest regular, fresh regulars cannot nuke a starved priority', () => {
+    const tickets = [
+      { id: 1, priorityType: 'REGULAR', createdAt: minsAgo(15), skipCount: 0, serviceId: 1 }, // Oldest regular (floor target)
+      { id: 2, priorityType: 'REGULAR', createdAt: minsAgo(1), skipCount: 0, serviceId: 1 },  // Fresh regular (must NOT get +1000)
+      { id: 3, priorityType: 'PWD', createdAt: minsAgo(20), skipCount: 5, serviceId: 1 },     // Starved priority (stoplight +500, SLA +100)
+      { id: 4, priorityType: 'SENIOR', createdAt: minsAgo(0), skipCount: 0, serviceId: 1 }
+    ];
+
+    // Last 3 served tickets for Service 1 were all Priority -> zipper ON
+    const recentTickets = [
+      { id: 101, serviceId: 1, priorityType: 'PWD' },
+      { id: 102, serviceId: 1, priorityType: 'SENIOR' },
+      { id: 103, serviceId: 1, priorityType: 'PWD' }
+    ];
+
+    // id1 = 0 + 1.5 + 1000 (zipper floor) = 1001.5
+    // id3 = 1 + 2.0 + 500 (stoplight) + 100 (PWD SLA 10) = 603.0
+    // id4 = 1 + 0.0 = 1.0
+    // id2 = 0 + 0.1 = 0.1 (NO zipper boost)
+    const sorted = calculateSmartScores([...tickets], mockPriorityGroups, mockSettings, recentTickets);
+
+    expect(sorted[0].id).toBe(1); // Oldest regular breaks through
+    expect(sorted[1].id).toBe(3); // Starved priority still second (fresh regular did NOT jump it)
+    expect(sorted[2].id).toBe(4);
+    expect(sorted[3].id).toBe(2);
+    expect(sorted[3]._smartScore).toBeCloseTo(0.1); // fresh regular untouched by zipper
+  });
 });

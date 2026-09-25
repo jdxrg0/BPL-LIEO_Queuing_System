@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { scheduleAutoBalance } = require('./meta.controller');
 const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
+const { buildServiceFlagMap, getActiveServices } = require('../utils/serviceFlagMap');
 
 const getPostponedTickets = async (req, res) => {
   try {
@@ -39,7 +40,7 @@ const notifyApproachingTickets = async (serviceId) => {
 
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
-      autoBalanceThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
+      autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
     const recentTickets = await prisma.ticket.findMany({
       where: { status: { in: ['COMPLETED', 'SERVING'] }, serviceId, servedAt: { not: null } },
@@ -48,7 +49,6 @@ const notifyApproachingTickets = async (serviceId) => {
     });
 
     const scoredQueue = calculateSmartScores(fullQueue, priorityGroups, settings, recentTickets);
-    scoredQueue.sort((a, b) => b.score - a.score);
 
     const db = getDb();
 
@@ -110,7 +110,7 @@ const getWaitingTickets = async (req, res) => {
     // 1. Fetch Config
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
-      autoBalanceThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
+      autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
     
     // 2. Fetch Recent Tickets for Zipper Engine
@@ -211,7 +211,7 @@ const createTicket = async (req, res) => {
 
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
-      autoBalanceThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
+      autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
     const recentTickets = await prisma.ticket.findMany({
       where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
@@ -279,10 +279,36 @@ const callTicket = async (req, res) => {
     const { id } = req.params;
     const { counterId, servedByUserId } = req.body;
 
-    const existingTicket = await prisma.ticket.findUnique({ where: { id: parseInt(id) } });
+    const existingTicket = await prisma.ticket.findUnique({
+      where: { id: parseInt(id) },
+      include: { service: true }
+    });
     if (!existingTicket) return res.status(404).json({ error: 'Ticket not found' });
 
+    const caller = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, role: true, caterNew: true, caterRenewal: true, caterRetirement: true }
+    });
+    if (!caller) return res.status(401).json({ error: 'User not found' });
+
     const isRecall = existingTicket.status === 'SERVING';
+
+    // Enforce the auto-allocation server-side: non-admins may only start serving
+    // tickets from queues they are allocated to (via their cater flag). Recalls of
+    // an already-serving ticket and admin override are exempt.
+    if (!isRecall && caller.role !== 'ADMIN') {
+      if (servedByUserId !== undefined && servedByUserId !== null && Number(servedByUserId) !== caller.id) {
+        return res.status(403).json({ error: 'You can only call tickets for yourself.' });
+      }
+      const prefix = existingTicket.service?.prefix;
+      const activeServices = await getActiveServices();
+      const { flagByPrefix } = buildServiceFlagMap(activeServices);
+      const flag = prefix ? flagByPrefix[prefix] : null;
+      if (!flag || !caller[flag]) {
+        return res.status(403).json({ error: 'You are not allocated to this service queue.' });
+      }
+    }
+
     let ticket;
 
     if (isRecall) {
@@ -423,7 +449,7 @@ const trackTicket = async (req, res) => {
 
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
-      autoBalanceThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
+      autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
     const recentTickets = await prisma.ticket.findMany({
       where: { status: { in: ['COMPLETED', 'SERVING'] }, serviceId: ticket.serviceId, servedAt: { not: null } },
@@ -433,8 +459,6 @@ const trackTicket = async (req, res) => {
 
     // Score the entire queue
     const scoredQueue = calculateSmartScores(existingQueue, priorityGroups, settings, recentTickets);
-    // Sort descending by score
-    scoredQueue.sort((a, b) => b.score - a.score);
 
     // Find this ticket's true rank
     const rankIndex = scoredQueue.findIndex(t => t.id === ticket.id);
@@ -444,7 +468,7 @@ const trackTicket = async (req, res) => {
     const { activeCount, activeUserIds } = await getActiveStaffProfiles(ticket.service.prefix);
     const avgServiceTimeMins = await getDynamicAverageServiceTime(ticket.serviceId, activeUserIds);
 
-    const estimatedWaitMins = Math.round((trueRank / activeCount) * avgServiceTimeMins);
+    const estimatedWaitMins = activeCount > 0 ? Math.round((trueRank / activeCount) * avgServiceTimeMins) : null;
 
     res.json({ ticket, trueRank, estimatedWaitMins });
   } catch (error) {

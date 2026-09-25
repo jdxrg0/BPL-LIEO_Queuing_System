@@ -1,18 +1,19 @@
 const prisma = require('../config/db');
+const { buildServiceFlagMap, getActiveServices } = require('./serviceFlagMap');
 
 /**
  * Gets the profiles of all staff members currently logged in and assigned 
  * to handle a specific service category.
  *
- * @param {string} servicePrefix - The prefix of the service (e.g., 'NW', 'RNW', 'R')
- * @returns {Promise<{ activeCount: number, activeUserIds: number[] }>}
+ * @param {string} servicePrefix - The prefix of the service to resolve a cater flag for.
+ * @returns {Promise<{ activeCount: number, activeUserIds: number[] }>} activeCount may be 0 when no staff are online.
  */
 async function getActiveStaffProfiles(servicePrefix) {
   try {
-    let filter = {};
-    if (servicePrefix === 'NW') filter = { caterNew: true };
-    else if (servicePrefix === 'RNW') filter = { caterRenewal: true };
-    else if (servicePrefix === 'R') filter = { caterRetirement: true };
+    const services = await getActiveServices();
+    const { flagByPrefix } = buildServiceFlagMap(services);
+    const flag = servicePrefix ? flagByPrefix[servicePrefix] : null;
+    const filter = flag ? { [flag]: true } : {};
 
     const activeUsers = await prisma.user.findMany({
       where: {
@@ -24,12 +25,12 @@ async function getActiveStaffProfiles(servicePrefix) {
 
     const activeUserIds = activeUsers.map(u => u.id);
     return {
-      activeCount: Math.max(1, activeUserIds.length),
+      activeCount: activeUserIds.length,
       activeUserIds
     };
   } catch (err) {
     console.error("Error in getActiveStaffProfiles:", err);
-    return { activeCount: 1, activeUserIds: [] };
+    return { activeCount: 0, activeUserIds: [] };
   }
 }
 

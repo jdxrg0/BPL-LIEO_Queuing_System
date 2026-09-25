@@ -81,4 +81,14 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     const zipperWait = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, recentTickets, 1, 5);
     expect(zipperWait).toBe(5);
   });
+
+  test('7. No Staff Online: Wait time should be null, not falsely floored to "1 clerk"', () => {
+    const existingQueue = Array.from({ length: 10 }).map((_, i) => ({
+      id: i, priorityType: 'REGULAR', createdAt: minsAgo(10 - i), serviceId: 1, skipCount: 0
+    }));
+
+    // 0 active counters: the old max(1, activeCounters) would have reported rank*avg = 55.
+    const noStaffWait = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, [], 0, 5);
+    expect(noStaffWait).toBeNull();
+  });
 });

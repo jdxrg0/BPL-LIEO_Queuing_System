@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, socket } from '../api';
+import { getServiceSlots } from '../utils/serviceSlots';
+
+const RECEPTION_STYLES = [
+  { text: 'text-success', border: 'border-success' },
+  { text: 'text-primary', border: 'border-primary' },
+  { text: 'text-danger', border: 'border-danger' }
+];
 
 export default function ReceptionistDashboard({ user }) {
   const [services, setServices] = useState([]);
@@ -64,9 +71,12 @@ export default function ReceptionistDashboard({ user }) {
     }
   };
 
-  const newAppQueue = useMemo(() => queue.filter(t => t.service.name === 'New Application'), [queue]);
-  const renewalQueue = useMemo(() => queue.filter(t => t.service.name === 'Renewal'), [queue]);
-  const retirementQueue = useMemo(() => queue.filter(t => t.service.name === 'Retirement'), [queue]);
+  const serviceSlots = useMemo(() => getServiceSlots(services), [services]);
+  const queuesBySlot = useMemo(() => serviceSlots.map((slot, index) => ({
+    ...slot,
+    style: RECEPTION_STYLES[index] || RECEPTION_STYLES[0],
+    tickets: queue.filter(t => t.service?.id === slot.service.id)
+  })), [serviceSlots, queue]);
 
   const renderQueueList = (title, filteredQueue, textColorClass, borderColorClass) => {
     return (
@@ -151,9 +161,7 @@ export default function ReceptionistDashboard({ user }) {
         <h3 className="mb-2 shrink-0 text-base font-semibold">Current Waiting Queue</h3>
         
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] grid-rows-[minmax(0,1fr)] gap-3 flex-1 min-h-0">
-          {renderQueueList('New', newAppQueue, 'text-success', 'border-success')}
-          {renderQueueList('Renewal', renewalQueue, 'text-primary', 'border-primary')}
-          {renderQueueList('Retirement', retirementQueue, 'text-danger', 'border-danger')}
+          {queuesBySlot.map(slot => renderQueueList(slot.service.name, slot.tickets, slot.style.text, slot.style.border))}
         </div>
       </div>
 

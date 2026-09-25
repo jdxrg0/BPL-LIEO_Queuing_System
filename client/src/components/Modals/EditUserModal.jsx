@@ -21,7 +21,7 @@ export default function EditUserModal({ isOpen, user, originalUser, onClose, onS
         const parsed = parseInt(user.counter.name.replace('Window ', ''));
         if (!isNaN(parsed)) wNum = parsed;
       }
-      setEditingUser({ ...user, currentPassword: '', windowNumber: wNum });
+      setEditingUser({ ...user, autoAssign: user.autoAssign !== false, currentPassword: '', windowNumber: wNum });
     }
   }, [isOpen, user]);
 
@@ -119,7 +119,8 @@ export default function EditUserModal({ isOpen, user, originalUser, onClose, onS
     editingUser.windowNumber !== originalWindowNum ||
     editingUser.caterNew !== originalUser.caterNew ||
     editingUser.caterRenewal !== originalUser.caterRenewal ||
-    editingUser.caterRetirement !== originalUser.caterRetirement
+    editingUser.caterRetirement !== originalUser.caterRetirement ||
+    editingUser.autoAssign !== (originalUser.autoAssign !== false)
   );
 
   return (
@@ -163,6 +164,15 @@ export default function EditUserModal({ isOpen, user, originalUser, onClose, onS
                   <button type="button" onClick={() => setEditingUser({...editingUser, caterRenewal: !editingUser.caterRenewal})} className={`flex-1 p-2 rounded border font-semibold text-sm cursor-pointer transition-colors ${editingUser.caterRenewal ? 'bg-primary border-primary text-white' : 'bg-surface border-border text-text-main hover:bg-slate-50'}`}>Renewal</button>
                   <button type="button" onClick={() => setEditingUser({...editingUser, caterRetirement: !editingUser.caterRetirement})} className={`flex-1 p-2 rounded border font-semibold text-sm cursor-pointer transition-colors ${editingUser.caterRetirement ? 'bg-danger border-danger text-white' : 'bg-surface border-border text-text-main hover:bg-slate-50'}`}>Retirement</button>
                 </div>
+              </div>
+              <div className="col-span-2 flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-bg-color">
+                <div>
+                  <label className="block text-sm font-semibold text-text-main">Allow Auto-Reallocation</label>
+                  <p className="text-xs text-text-muted mb-0 mt-0.5 leading-relaxed">When ON, the auto-balancer may reassign this employee's transactions. Turn OFF to keep their manual assignments untouched.</p>
+                </div>
+                <button type="button" onClick={() => setEditingUser({...editingUser, autoAssign: !editingUser.autoAssign})} className={`shrink-0 px-5 py-2 rounded border font-bold text-sm cursor-pointer transition-colors ${editingUser.autoAssign ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-surface border-border text-text-muted'}`}>
+                  {editingUser.autoAssign ? 'Auto-Reallocate: ON' : 'Auto-Reallocate: OFF'}
+                </button>
               </div>
             </div>
 

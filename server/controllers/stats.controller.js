@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { buildServiceFlagMap } = require('../utils/serviceFlagMap');
 
 const getStats = async (req, res) => {
   try {
@@ -19,16 +20,15 @@ const getStats = async (req, res) => {
     });
     
     const services = await prisma.service.findMany();
-    const servicePrefixMap = {};
-    services.forEach(s => servicePrefixMap[s.id] = s.prefix);
+    const { slotByServiceId } = buildServiceFlagMap(services);
 
     let total = 0, newApp = 0, renewal = 0, retirement = 0;
     officeGroup.forEach(g => {
       total += g._count.id;
-      const prefix = servicePrefixMap[g.serviceId];
-      if (prefix === 'NW') newApp += g._count.id;
-      if (prefix === 'RNW') renewal += g._count.id;
-      if (prefix === 'R') retirement += g._count.id;
+      const slot = slotByServiceId[g.serviceId];
+      if (slot === 0) newApp += g._count.id;
+      if (slot === 1) renewal += g._count.id;
+      if (slot === 2) retirement += g._count.id;
     });
 
     const officeStats = { isHistorical, total, newApp, renewal, retirement, year: queryYear };
@@ -80,10 +80,10 @@ const getStats = async (req, res) => {
       const dateStr = `${monthStr} ${d.getDate()}`;
       if (dateBuckets[dateStr] !== undefined) {
         dateBuckets[dateStr].total++;
-        const prefix = servicePrefixMap[t.serviceId];
-        if (prefix === 'NW') dateBuckets[dateStr].newApp++;
-        if (prefix === 'RNW') dateBuckets[dateStr].renewal++;
-        if (prefix === 'R') dateBuckets[dateStr].retirement++;
+        const slot = slotByServiceId[t.serviceId];
+        if (slot === 0) dateBuckets[dateStr].newApp++;
+        if (slot === 1) dateBuckets[dateStr].renewal++;
+        if (slot === 2) dateBuckets[dateStr].retirement++;
       }
     });
 
@@ -99,7 +99,7 @@ const getStats = async (req, res) => {
 
     // Employee Stats - Fixed N+1 Problem
     const users = await prisma.user.findMany({
-      select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, profilePictureBase64: true }
+      select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true }
     });
 
     const employeeGroup = await prisma.ticket.groupBy({
@@ -129,10 +129,10 @@ const getStats = async (req, res) => {
       const userId = g.servedByUserId;
       if (employeeMap[userId]) {
         employeeMap[userId].servedTotalYear += g._count.id;
-        const prefix = servicePrefixMap[g.serviceId];
-        if (prefix === 'NW') employeeMap[userId].servedNewYear += g._count.id;
-        if (prefix === 'RNW') employeeMap[userId].servedRenewalYear += g._count.id;
-        if (prefix === 'R') employeeMap[userId].servedRetirementYear += g._count.id;
+        const slot = slotByServiceId[g.serviceId];
+        if (slot === 0) employeeMap[userId].servedNewYear += g._count.id;
+        if (slot === 1) employeeMap[userId].servedRenewalYear += g._count.id;
+        if (slot === 2) employeeMap[userId].servedRetirementYear += g._count.id;
       }
     });
 
@@ -227,10 +227,10 @@ const getStats = async (req, res) => {
       if (sparkBuckets[key]) {
         const bucket = sparkBuckets[key];
         bucket.total++;
-        const prefix = servicePrefixMap[t.serviceId];
-        if (prefix === 'NW') bucket.newApp++;
-        if (prefix === 'RNW') bucket.renewal++;
-        if (prefix === 'R') bucket.retirement++;
+        const slot = slotByServiceId[t.serviceId];
+        if (slot === 0) bucket.newApp++;
+        if (slot === 1) bucket.renewal++;
+        if (slot === 2) bucket.retirement++;
       }
     });
 

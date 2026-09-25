@@ -59,6 +59,12 @@ setInterval(() => autoBalanceCounters(), 5 * 60 * 1000);
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
   console.log(`Server listening on port ${PORT}`);
+  // Enable SQLite WAL for reads/writes to share the DB file with less lock contention
+  try {
+    await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
+  } catch (err) {
+    console.warn('Could not enable SQLite WAL mode:', err.message);
+  }
   // Perform cloud sync catch up
   await catchUpSync(prisma);
   // Push branding (logo, title) to Firebase for the Vercel tracker
