@@ -201,11 +201,53 @@ const getStats = async (req, res) => {
       yoy: { current: currentCount, previous: prevYearCount, pctChange }
     };
 
+    // Sparkline data for KPI cards - daily counts over a rolling window ending at trendEnd
+    const SPARK_DAYS = 90;
+    const sparkEnd = new Date(trendEnd);
+    const sparkStart = new Date(sparkEnd);
+    sparkStart.setDate(sparkStart.getDate() - (SPARK_DAYS - 1));
+    sparkStart.setHours(0, 0, 0, 0);
+
+    const sparkTickets = await prisma.ticket.findMany({
+      where: { status: 'COMPLETED', completedAt: { gte: sparkStart, lte: sparkEnd } },
+      select: { completedAt: true, serviceId: true }
+    });
+
+    const sparkBuckets = {};
+    let sparkDate = new Date(sparkStart);
+    while (sparkDate <= sparkEnd) {
+      const key = sparkDate.toDateString();
+      sparkBuckets[key] = { total: 0, newApp: 0, renewal: 0, retirement: 0 };
+      sparkDate.setDate(sparkDate.getDate() + 1);
+    }
+
+    sparkTickets.forEach(t => {
+      if (!t.completedAt) return;
+      const key = new Date(t.completedAt).toDateString();
+      if (sparkBuckets[key]) {
+        const bucket = sparkBuckets[key];
+        bucket.total++;
+        const prefix = servicePrefixMap[t.serviceId];
+        if (prefix === 'NW') bucket.newApp++;
+        if (prefix === 'RNW') bucket.renewal++;
+        if (prefix === 'R') bucket.retirement++;
+      }
+    });
+
+    const spark = { total: [], newApp: [], renewal: [], retirement: [] };
+    for (const counts of Object.values(sparkBuckets)) {
+      spark.total.push(counts.total);
+      spark.newApp.push(counts.newApp);
+      spark.renewal.push(counts.renewal);
+      spark.retirement.push(counts.retirement);
+    }
+
     res.json({
       office: officeStats,
       trend,
       employees: employeeStats,
-      advanced
+      advanced,
+      spark
     });
   } catch (error) {
     console.error("Stats Error:", error);

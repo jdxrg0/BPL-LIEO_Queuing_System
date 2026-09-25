@@ -318,15 +318,8 @@ const MobileTracker = () => {
     }
   }, [servingTickets, myTicketResult]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!ticketNumberInput.trim() || !selectedServicePrefix || !ticketDate) return;
-    
-    const parts = ticketDate.split('-');
-    if (parts.length !== 3) return;
-    const dateStr = parts[1] + parts[2] + parts[0].slice(-2);
-    const fullTicketNumber = `${selectedServicePrefix}-${dateStr}-${ticketNumberInput.padStart(3, '0')}`;
-    
+  // Extracted search logic so it can be called from both handleSearch and auto-restore
+  const startTicketSearch = (fullTicketNumber) => {
     setIsSearching(true);
     setMyTicketResult(null);
 
@@ -415,6 +408,29 @@ const MobileTracker = () => {
       setIsSearching(false);
     }
   };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!ticketNumberInput.trim() || !selectedServicePrefix || !ticketDate) return;
+    
+    const parts = ticketDate.split('-');
+    if (parts.length !== 3) return;
+    const dateStr = parts[1] + parts[2] + parts[0].slice(-2);
+    const fullTicketNumber = `${selectedServicePrefix}-${dateStr}-${ticketNumberInput.padStart(3, '0')}`;
+    
+    // Persist search so it survives PWA page reloads (e.g., after notification tap)
+    sessionStorage.setItem('bplo-last-search', fullTicketNumber);
+
+    startTicketSearch(fullTicketNumber);
+  };
+
+  // Auto-restore search after PWA reload (e.g., returning from a notification)
+  useEffect(() => {
+    const savedSearch = sessionStorage.getItem('bplo-last-search');
+    if (savedSearch) {
+      startTicketSearch(savedSearch);
+    }
+  }, []);
 
   const getPriorityColor = (priority) => {
     if (priority === 'PWD') return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400';
