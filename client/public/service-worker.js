@@ -9,6 +9,7 @@ self.addEventListener('push', function(event) {
         vibrate: [200, 100, 200, 100, 400],
         tag: data.tag || 'bplo-ticket-notification',
         renotify: true,
+        silent: false,
         data: {
           url: data.url || '/tracker'
         }

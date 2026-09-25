@@ -431,6 +431,10 @@ const MobileTracker = () => {
               if (prev && prev.status === 'WAITING' && t.status === 'SERVING') {
                 triggerFlash(t.id.toString());
               }
+              // Trigger the animation if the ticket is SERVING on initial app load (e.g., opened from notification)
+              else if (!prev && t.status === 'SERVING') {
+                triggerFlash(t.id.toString());
+              }
               // Trigger the animation if the ticket was ALREADY SERVING but got recalled (updatedAt changed)
               else if (prev && prev.status === 'SERVING' && t.status === 'SERVING') {
                 const prevSeconds = prev.updatedAt?.seconds || 0;
