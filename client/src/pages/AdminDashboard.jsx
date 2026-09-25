@@ -1,61 +1,34 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api, socket } from '../api';
-import { User, Printer, Settings, Users, TrendingUp, RefreshCw, X, UserPlus, FileText } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Printer, Settings, RefreshCw, UserPlus, FileText } from 'lucide-react';
 
-import ModalWrapper from '../components/Modals/ModalWrapper';
 import AddEmployeeModal from '../components/Modals/AddEmployeeModal';
 import EditUserModal from '../components/Modals/EditUserModal';
-
-const SERVICE_STYLES = {
-  NW: {
-    name: 'New Application',
-    text: 'text-emerald-600',
-    badge: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    soft: 'bg-emerald-50',
-    card: 'border-emerald-100'
-  },
-  RNW: {
-    name: 'Renewal',
-    text: 'text-amber-500',
-    badge: 'bg-amber-50 text-amber-700 border-amber-100',
-    soft: 'bg-amber-50',
-    card: 'border-amber-100'
-  },
-  R: {
-    name: 'Retirement',
-    text: 'text-rose-600',
-    badge: 'bg-rose-50 text-rose-700 border-rose-100',
-    soft: 'bg-rose-50',
-    card: 'border-rose-100'
-  }
-};
+import SummaryCards from '../components/Admin/SummaryCards';
+import LiveQueueOverview from '../components/Admin/LiveQueueOverview';
+import TicketsChartCard from '../components/Admin/TicketsChartCard';
+import AdvancedAnalyticsSection from '../components/Admin/AdvancedAnalyticsSection';
+import EmployeeTable from '../components/Admin/EmployeeTable';
+import PrintTicketsModal from '../components/Admin/PrintTicketsModal';
+import GlobalPopup from '../components/Admin/GlobalPopup';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [printConfig, setPrintConfig] = useState({ type: 'NW', startNumber: 1, quantity: 50 });
-  
+
   // Live queue operational data
   const [liveWaitTimes, setLiveWaitTimes] = useState(null);
   const [waitingCounts, setWaitingCounts] = useState({ NW: 0, RNW: 0, R: 0 });
   const [servingTickets, setServingTickets] = useState([]);
-  
+
   // Selected user for EditUserModal
   const [editingUser, setEditingUser] = useState(null);
 
-  useEffect(() => {
-    api.getSettings().then(s => {
-      if (s?.websiteName) document.title = `${s.websiteName} | Admin Dashboard`;
-    }).catch(() => {
-      document.title = 'BPLO Queuing System | Admin Dashboard';
-    });
-  }, []);
-
   // Custom Popup Window instead of browser alerts
-  const [popupMessage, setPopupMessage] = useState(null); 
+  const [popupMessage, setPopupMessage] = useState(null);
   const showPopup = (title, message, type = 'error') => {
     setPopupMessage({ title, message, type });
   };
@@ -69,19 +42,24 @@ export default function AdminDashboard() {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  
+
   const [trendStart, setTrendStart] = useState(formatDate(startOfMonth));
   const [trendEnd, setTrendEnd] = useState(formatDate(endOfMonth));
-  const trendStartRef = useRef(trendStart);
-  const trendEndRef = useRef(trendEnd);
 
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const filterYearRef = useRef(new Date().getFullYear());
+
+  useEffect(() => {
+    api.getSettings().then(s => {
+      if (s?.websiteName) document.title = `${s.websiteName} | Admin Dashboard`;
+    }).catch(() => {
+      document.title = 'BPLO Queuing System | Admin Dashboard';
+    });
+  }, []);
 
   const handleYearChange = (e) => {
     const selectedYear = parseInt(e.target.value);
     setFilterYear(selectedYear);
-    
+
     const now = new Date();
     if (selectedYear === now.getFullYear()) {
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -96,7 +74,7 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const statsData = await api.getStats(trendStartRef.current, trendEndRef.current, filterYearRef.current);
+      const statsData = await api.getStats(trendStart, trendEnd, filterYear);
       setStats(statsData);
     } catch (err) {
       console.error('Failed to fetch admin data', err);
@@ -129,9 +107,6 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    trendStartRef.current = trendStart;
-    trendEndRef.current = trendEnd;
-    filterYearRef.current = filterYear;
     fetchData();
   }, [trendStart, trendEnd, filterYear]);
 
@@ -142,7 +117,7 @@ export default function AdminDashboard() {
       fetchData();
       fetchLiveData();
     }, 30000);
-    
+
     const handleUpdate = () => {
       fetchData();
       fetchLiveData();
@@ -167,179 +142,6 @@ export default function AdminDashboard() {
     return stats?.employees.find(u => u?.id === editingUser?.id);
   }, [stats, editingUser?.id]);
 
-
-  // Memoize the chart to prevent re-rendering when typing in inputs or changing unrelated state
-  const renderChart = useMemo(() => {
-    if (!stats?.trend) return null;
-    return (
-      <div className="bg-surface rounded-3xl p-5 mb-6 shadow-soft border border-border flex flex-col transition-all hover:shadow-md animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-          <div>
-            <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Tickets Issued</h2>
-            <p className="text-text-muted mt-0.5 text-xs font-medium mb-2">Daily volume of new tickets</p>
-            <div className="flex gap-4">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>New Apps</span>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-amber-500"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>Renewals</span>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>Retirements</span>
-            </div>
-          </div>
-          <div className="flex gap-3 items-center bg-bg-color p-1.5 rounded-xl border border-slate-100">
-            <div className="flex items-center gap-1.5 pl-1.5">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">From:</label>
-              <input type="date" value={trendStart} onChange={(e) => setTrendStart(e.target.value)} className="p-1 px-2 rounded-lg border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-xs shadow-sm" />
-            </div>
-            <div className="flex items-center gap-1.5 pr-1.5">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">To:</label>
-              <input type="date" value={trendEnd} onChange={(e) => setTrendEnd(e.target.value)} className="p-1 px-2 rounded-lg border border-border outline-none bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold text-xs shadow-sm" />
-            </div>
-          </div>
-        </div>
-        <div className="h-64 w-full mt-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stats.trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12, fontWeight: 600 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 12, fontWeight: 600 }} dx={-10} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px -10px rgba(79, 70, 229, 0.2)', padding: '12px 16px' }}
-                itemStyle={{ color: 'var(--color-primary)', fontWeight: '900' }}
-                labelStyle={{ color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '4px' }}
-                cursor={{ stroke: 'var(--color-primary)', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.4 }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="newApp" 
-                name="New Apps" 
-                stroke="#10b981" 
-                strokeWidth={3} 
-                dot={{ r: 4, fill: '#10b981', strokeWidth: 3, stroke: 'white' }} 
-                activeDot={{ r: 8, strokeWidth: 0 }} 
-                animationDuration={1500}
-                animationEasing="ease-out"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="renewal" 
-                name="Renewals" 
-                stroke="#f59e0b" 
-                strokeWidth={3} 
-                dot={{ r: 4, fill: '#f59e0b', strokeWidth: 3, stroke: 'white' }} 
-                activeDot={{ r: 8, strokeWidth: 0 }} 
-                animationDuration={1500}
-                animationEasing="ease-out"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="retirement" 
-                name="Retirements" 
-                stroke="#f43f5e" 
-                strokeWidth={3} 
-                dot={{ r: 4, fill: '#f43f5e', strokeWidth: 3, stroke: 'white' }} 
-                activeDot={{ r: 8, strokeWidth: 0 }} 
-                animationDuration={1500}
-                animationEasing="ease-out"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  }, [stats?.trend, trendStart, trendEnd]);
-
-  // Memoize the employee table to avoid re-rendering on unrelated state changes
-  const renderEmployeeTable = useMemo(() => {
-    if (!stats?.employees) return null;
-    return (
-      <div className="bg-surface rounded-3xl overflow-hidden shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <div className="p-4 px-5 border-b border-border bg-bg-color/50 flex justify-between items-center">
-          <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Employee Performance</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border uppercase tracking-wider">FY {stats.office.year}</span>
-            <span className="text-xs font-semibold text-text-muted bg-surface px-2 py-1 rounded-lg shadow-sm border border-border">{stats.employees.length} Users</span>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-surface text-text-muted text-[10px] uppercase tracking-wider font-extrabold">
-                <th className="p-3 px-4">Employee Details</th>
-                <th className="p-3 px-4 text-center">Total</th>
-                <th className="p-3 px-4 text-center">All-Time</th>
-                <th className="p-3 px-4 text-center">NW</th>
-                <th className="p-3 px-4 text-center">RNW</th>
-                <th className="p-3 px-4 text-center">R</th>
-                <th className="p-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.employees.map((emp, i) => {
-                return (
-                  <tr key={emp.id} className="border-t border-border hover:bg-bg-color/80 transition-colors group">
-                    <td className="p-2 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-black text-sm shadow-sm border border-indigo-50">
-                          {emp.profilePictureBase64 ? (
-                            <img src={emp.profilePictureBase64} alt={emp.name} className="w-full h-full rounded-xl object-cover" />
-                          ) : (
-                            emp.name.charAt(0)
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-text-main text-sm group-hover:text-indigo-600 transition-colors">
-                            {emp.name}
-                          </div>
-                          <div className="text-[10px] font-semibold text-text-muted mt-0.5 flex gap-1.5 items-center">
-                              {emp.counter && <span className="bg-slate-100 text-text-muted px-1.5 py-0.5 rounded border border-slate-200">Window {emp.counter.name ? emp.counter.name.replace('Window ', '') : ''}</span>}
-                          </div>
-                          <div className="flex gap-1.5 items-center mt-1">
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                              emp.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 
-                              emp.role === 'RECEPTIONIST' ? 'bg-emerald-100 text-emerald-700' : 
-                              'bg-slate-100 text-text-muted'
-                            }`}>
-                              {emp.role}
-                            </span>
-                            <span className="text-[10px] text-text-muted font-semibold mx-0.5">•</span>
-                            <div className="flex gap-1">
-                              {emp.caterNew && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[9px] font-extrabold shadow-sm">NW</span>}
-                              {emp.caterRenewal && <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-extrabold shadow-sm">RNW</span>}
-                              {emp.caterRetirement && <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 rounded text-[9px] font-extrabold shadow-sm">R</span>}
-                              {!emp.caterNew && !emp.caterRenewal && !emp.caterRetirement && <span className="text-text-muted text-[9px] font-bold">None</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-2 px-4 text-center font-black text-indigo-600 text-base">{emp.servedTotalYear.toLocaleString()}</td>
-                    <td className="p-2 px-4 text-center font-bold text-text-muted text-sm">{emp.servedTotalAllTime.toLocaleString()}</td>
-                    <td className="p-2 px-4 text-center font-bold text-emerald-600 bg-emerald-50/30 text-sm">{emp.servedNewYear.toLocaleString()}</td>
-                    <td className="p-2 px-4 text-center font-bold text-indigo-600 bg-indigo-50/30 text-sm">{emp.servedRenewalYear.toLocaleString()}</td>
-                    <td className="p-2 px-4 text-center font-bold text-rose-600 bg-rose-50/30 text-sm">{emp.servedRetirementYear.toLocaleString()}</td>
-                    <td className="p-2 px-4 text-right">
-                      <button 
-                        onClick={() => setEditingUser(emp)} 
-                        className="px-3 py-1.5 bg-surface border border-border rounded-lg font-bold text-[11px] text-text-main hover:bg-bg-color hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-              {stats.employees.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="p-12 text-center text-text-muted font-semibold text-lg bg-bg-color">No employees found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }, [stats?.employees]);
-
-
   if (!stats) return (
     <div className="h-full flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 animate-pulse">
@@ -351,7 +153,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="container py-4 max-w-[1400px] mx-auto px-6 lg:px-12">
-      
+
       {/* Header */}
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-slide-up">
         <div className="flex items-center gap-4">
@@ -361,7 +163,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select 
+          <select
             value={filterYear}
             onChange={handleYearChange}
             className="py-1.5 px-3 rounded-lg border border-border text-xs cursor-pointer bg-surface text-text-main font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-sm"
@@ -371,11 +173,11 @@ export default function AdminDashboard() {
               return <option key={y} value={y}>{y}</option>;
             })}
           </select>
-          
+
           <div className="h-6 w-px bg-border mx-1 hidden md:block"></div>
-          
-          <button 
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
+
+          <button
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
             onClick={async () => {
               try {
                 const res = await api.autoBalanceCounters();
@@ -388,26 +190,26 @@ export default function AdminDashboard() {
           >
             <RefreshCw size={14} className="text-indigo-600" /> Auto-Balance
           </button>
-          <button 
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
+          <button
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
             onClick={handlePrint}
           >
             <FileText size={14} className="text-indigo-600" /> Print Report
           </button>
-          <button 
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
+          <button
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
             onClick={() => window.dispatchEvent(new Event('openGlobalSettings'))}
           >
             <Settings size={14} className="text-indigo-600" /> Settings
           </button>
-          <button  
-            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer" 
+          <button
+            className="flex items-center gap-1.5 bg-surface text-text-main border border-border hover:bg-bg-color hover:shadow-sm px-2.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer shrink-0"
             onClick={() => setIsPrintModalOpen(true)}
           >
             <Printer size={14} className="text-indigo-600" /> Print Tickets
           </button>
-          <button 
-            className="flex items-center gap-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-4 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ml-1" 
+          <button
+            className="flex items-center gap-1.5 bg-indigo-600 text-white border-none hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ml-1 shrink-0"
             onClick={() => setIsModalOpen(true)}
           >
             <UserPlus size={14} /> Add Employee
@@ -416,207 +218,45 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 animate-slide-up">
-        {[
-          { label: 'Total Served', value: stats.office.total, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', icon: <Users size={18}/> },
-          { label: 'New Apps', value: stats.office.newApp, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: <TrendingUp size={18}/> },
-          { label: 'Renewals', value: stats.office.renewal, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', icon: <RefreshCw size={18}/> },
-          { label: 'Retirements', value: stats.office.retirement, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', icon: <X size={18}/> }
-        ].map((kpi, idx) => (
-          <div key={idx} className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className={`absolute right-0 top-0 w-20 h-20 rounded-bl-full ${kpi.bg} opacity-50 pointer-events-none`}></div>
-            <div className="flex justify-between items-start mb-2 relative z-10">
-              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">{kpi.label}</span>
-              <div className={`w-8 h-8 rounded-xl ${kpi.bg} ${kpi.color} flex items-center justify-center border ${kpi.border}`}>
-                {kpi.icon}
-              </div>
-            </div>
-            <span className={`text-3xl font-black tracking-tighter ${kpi.color} relative z-10`}>{kpi.value}</span>
-          </div>
-        ))}
-      </div>
+      <SummaryCards office={stats.office} />
 
       {/* Live Queue Overview */}
-      <div className="bg-surface rounded-3xl p-5 mb-6 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.05s' }}>
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-          <div>
-            <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Live Queue</h2>
-            <p className="text-text-muted mt-0.5 text-xs font-medium">Real-time wait times and currently serving.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">Live</span>
-            <span className="ml-2 text-xs font-bold text-text-muted bg-bg-color px-2 py-1 rounded-lg border border-border">
-              {Object.values(waitingCounts).reduce((a, b) => a + b, 0)} waiting
-            </span>
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
-              {servingTickets.length} serving
-            </span>
-          </div>
-        </div>
+      <LiveQueueOverview
+        liveWaitTimes={liveWaitTimes}
+        waitingCounts={waitingCounts}
+        servingTickets={servingTickets}
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {Object.entries(SERVICE_STYLES).map(([prefix, style]) => (
-            <div key={prefix} className={`rounded-2xl p-4 border ${style.card} bg-surface flex flex-col gap-2 relative overflow-hidden shadow-sm`}>
-              <div className={`absolute right-0 top-0 w-16 h-16 rounded-bl-full ${style.soft} opacity-40 pointer-events-none`}></div>
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-text-muted text-[10px] font-black uppercase tracking-widest">{style.name}</span>
-                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${style.badge}`}>{prefix}</span>
-              </div>
-              <div className="flex items-end justify-between relative z-10">
-                <span className={`text-3xl font-black tracking-tighter ${style.text}`}>{waitingCounts[prefix] || 0}</span>
-                <span className="text-xs font-bold text-text-muted mb-1">
-                  {liveWaitTimes && liveWaitTimes[prefix] !== undefined ? `~${liveWaitTimes[prefix]} min wait` : 'calculating…'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Trend Chart */}
+      <TicketsChartCard
+        trend={stats.trend}
+        trendStart={trendStart}
+        trendEnd={trendEnd}
+        onStartChange={setTrendStart}
+        onEndChange={setTrendEnd}
+      />
 
-        {/* Now Serving */}
-        <div className="border-t border-border pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="m-0 text-xs font-black text-text-muted uppercase tracking-wider">Now Serving</h3>
-            <span className="text-xs font-bold text-indigo-600">{servingTickets.length} active</span>
-          </div>
-          {servingTickets.length === 0 ? (
-            <div className="text-center py-6 text-text-muted font-semibold text-sm bg-bg-color/60 rounded-2xl border border-dashed border-border">No tickets currently being served.</div>
-          ) : (
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {servingTickets.map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-bg-color border border-border shrink-0">
-                  <span className={`font-black text-base ${SERVICE_STYLES[t.service?.prefix]?.text || 'text-text-main'}`}>{t.number}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase border ${SERVICE_STYLES[t.service?.prefix]?.badge || 'border-border text-text-muted'}`}>{t.service?.prefix}</span>
-                  {t.counter?.name && <span className="text-xs font-bold text-text-muted">{t.counter.name}</span>}
-                  {t.priorityType && t.priorityType !== 'REGULAR' && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-100">{t.priorityType}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Trend Chart (Memoized) */}
-      {renderChart}
-
-      {/* Quality Metrics */}
+      {/* Advanced Analytics (collapsed by default) */}
       {stats.advanced && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-rose-50 opacity-50 pointer-events-none"></div>
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">No-Show</span>
-                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100"><X size={18}/></div>
-              </div>
-              <span className="text-3xl font-black tracking-tighter text-rose-600 relative z-10">{stats.advanced.noShow}</span>
-            </div>
-
-            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-amber-50 opacity-50 pointer-events-none"></div>
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Postponed</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-100"><RefreshCw size={18}/></div>
-              </div>
-              <span className="text-3xl font-black tracking-tighter text-amber-500 relative z-10">{stats.advanced.postponed}</span>
-            </div>
-
-            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-indigo-50 opacity-50 pointer-events-none"></div>
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Avg Skips</span>
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100"><TrendingUp size={18}/></div>
-              </div>
-              <span className="text-3xl font-black tracking-tighter text-indigo-600 relative z-10">{stats.advanced.avgSkipCount}</span>
-            </div>
-
-            <div className="bg-surface rounded-3xl p-4 shadow-soft border border-border flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-20 h-20 rounded-bl-full bg-emerald-50 opacity-50 pointer-events-none"></div>
-              <div className="flex justify-between items-start mb-2 relative z-10">
-                <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">YoY vs {stats.office.year - 1}</span>
-                <TrendingUp size={18} className={stats.advanced.yoy.pctChange >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
-              </div>
-              <div className="relative z-10 flex items-baseline gap-2">
-                <span className={`text-3xl font-black tracking-tighter ${stats.advanced.yoy.pctChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {stats.advanced.yoy.pctChange >= 0 ? '+' : ''}{stats.advanced.yoy.pctChange}%
-                </span>
-              </div>
-              <p className="m-0 mt-1 text-[10px] font-semibold text-text-muted relative z-10">
-                {stats.advanced.yoy.current.toLocaleString()} vs {stats.advanced.yoy.previous.toLocaleString()} same period {stats.office.year - 1}
-              </p>
-            </div>
-          </div>
-
-          {/* Busiest Hours + Priority Mix */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Busiest Hours</h2>
-              <p className="text-text-muted mt-0.5 text-xs font-medium">Completed tickets by hour of day</p>
-              <div className="h-56 w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.advanced.busiestHours} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.5} />
-                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 9, fontWeight: 600 }} interval={2} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--color-text-muted)', fontSize: 11, fontWeight: 600 }} dx={-10} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '16px', border: 'none', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', boxShadow: '0 10px 40px -10px rgba(79, 70, 229, 0.2)', padding: '12px 16px' }}
-                      itemStyle={{ color: 'var(--color-primary)', fontWeight: '900' }}
-                      labelStyle={{ color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '4px' }}
-                      cursor={{ fill: 'var(--color-primary)', opacity: 0.08 }}
-                    />
-                    <Bar dataKey="count" name="Tickets" radius={[6, 6, 0, 0]}>
-                      {stats.advanced.busiestHours.map((entry, idx) => (
-                        <Cell key={idx} fill={entry.count > 0 ? 'var(--color-primary)' : 'var(--color-border)'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.25s' }}>
-              <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Priority Mix</h2>
-              <p className="text-text-muted mt-0.5 text-xs font-medium">Completed tickets by priority group</p>
-              <div className="flex flex-col gap-4 mt-5">
-                {stats.advanced.priorityBreakdown.length === 0 ? (
-                  <div className="text-center py-8 text-text-muted font-semibold text-sm bg-bg-color/60 rounded-2xl border border-dashed border-border">No data for this period.</div>
-                ) : (
-                  (() => {
-                    const maxCount = Math.max(...stats.advanced.priorityBreakdown.map(i => i.count), 1);
-                    const totalCount = stats.advanced.priorityBreakdown.reduce((a, i) => a + i.count, 0);
-                    return stats.advanced.priorityBreakdown.map(item => (
-                      <div key={item.type} className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-text-main">{item.label}</span>
-                          <span className="text-xs font-black text-indigo-600">{item.count.toLocaleString()} · {Math.round((item.count / totalCount) * 100)}%</span>
-                        </div>
-                        <div className="h-2.5 rounded-full bg-bg-color overflow-hidden border border-border/50">
-                          <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${(item.count / maxCount) * 100}%` }} />
-                        </div>
-                      </div>
-                    ));
-                  })()
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+        <AdvancedAnalyticsSection
+          advanced={stats.advanced}
+          year={stats.office.year}
+        />
       )}
 
-      {/* Employee Statistics Table (Memoized) */}
-      {renderEmployeeTable}
+      {/* Employee Statistics Table */}
+      <EmployeeTable
+        employees={stats.employees}
+        year={stats.office.year}
+        onEdit={setEditingUser}
+      />
 
       {/* Extracted Modals */}
-      <AddEmployeeModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={() => { setIsModalOpen(false); fetchData(); }} 
-        showPopup={showPopup} 
+      <AddEmployeeModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => { setIsModalOpen(false); fetchData(); }}
+        showPopup={showPopup}
       />
 
       <EditUserModal
@@ -628,83 +268,18 @@ export default function AdminDashboard() {
         showPopup={showPopup}
       />
 
-      {/* Print Configuration Modal */}
-      <ModalWrapper isOpen={isPrintModalOpen} zIndex={1000} bg="rgba(15,23,42,0.6)">
-        <div className="bg-surface p-8 rounded-3xl w-[450px] shadow-float border border-border animate-slide-up relative">
-          <button onClick={() => setIsPrintModalOpen(false)} className="absolute top-6 right-6 bg-slate-100 border-none w-10 h-10 rounded-full flex items-center justify-center cursor-pointer text-text-muted hover:text-text-main hover:bg-slate-200 transition-colors">×</button>
-          
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-              <Printer size={24} />
-            </div>
-            <h2 className="m-0 text-2xl font-extrabold text-text-main tracking-tight">Print Tickets</h2>
-          </div>
-          
-          <div className="mb-6">
-            <label className="block mb-2 font-bold text-xs text-text-muted uppercase tracking-wider">Service Type</label>
-            <select 
-              value={printConfig.type} 
-              onChange={e => setPrintConfig({...printConfig, type: e.target.value})}
-              className="w-full p-4 rounded-xl border border-border text-base bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold shadow-sm"
-            >
-              <option value="NW">New Business (NW)</option>
-              <option value="RNW">Renewal (RNW)</option>
-              <option value="R">Retirement (R)</option>
-            </select>
-          </div>
-
-          <div className="flex gap-4 mb-8">
-            <div className="flex-1">
-              <label className="block mb-2 font-bold text-xs text-text-muted uppercase tracking-wider">Start Number</label>
-              <input type="number" min="1" value={printConfig.startNumber} onChange={e => setPrintConfig({...printConfig, startNumber: Math.max(1, parseInt(e.target.value)||1)})} className="w-full p-4 rounded-xl border border-border text-base bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold shadow-sm" />
-            </div>
-            <div className="flex-1">
-              <label className="block mb-2 font-bold text-xs text-text-muted uppercase tracking-wider">Quantity</label>
-              <input type="number" min="1" max="200" value={printConfig.quantity} onChange={e => setPrintConfig({...printConfig, quantity: Math.max(1, parseInt(e.target.value)||1)})} className="w-full p-4 rounded-xl border border-border text-base bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold shadow-sm" />
-            </div>
-          </div>
-
-          <button 
-            onClick={() => {
-              setIsPrintModalOpen(false);
-              window.open(`/print-tickets?type=${printConfig.type}&start=${printConfig.startNumber}&qty=${printConfig.quantity}`, '_blank');
-            }}
-            className="w-full p-4 bg-indigo-600 text-white border-none rounded-xl cursor-pointer font-bold text-lg hover:bg-indigo-700 hover:-translate-y-1 transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
-          >
-            <Printer size={20} /> Generate Page
-          </button>
-        </div>
-      </ModalWrapper>
-
-      {/* Global Message Popup Window */}
-      <ModalWrapper isOpen={!!popupMessage} zIndex={9999} bg="rgba(0,0,0,0.6)">
-        {() => {
-          const isError = popupMessage.type === 'error';
-          return (
-            <div className="card w-[400px] bg-surface border border-border rounded-xl shadow-xl flex flex-col overflow-hidden animate-slide-up text-center p-8">
-              <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center border-4 ${isError ? 'bg-red-50 border-red-100 text-red-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
-                {isError ? (
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                ) : (
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
-                )}
-              </div>
-              <h3 className={`m-0 mb-2 text-2xl font-extrabold tracking-tight ${isError ? 'text-red-600' : 'text-emerald-600'}`}>
-                {popupMessage.title}
-              </h3>
-              <p className="m-0 mb-6 text-text-main text-sm font-medium">
-                {popupMessage.message}
-              </p>
-              <button 
-                onClick={() => setPopupMessage(null)} 
-                className={`w-full py-3.5 font-bold rounded-lg border-none cursor-pointer transition-colors text-white shadow-sm hover:-translate-y-0.5 active:translate-y-0 ${isError ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-              >
-                Okay, got it
-              </button>
-            </div>
-          );
+      <PrintTicketsModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        config={printConfig}
+        onConfigChange={setPrintConfig}
+        onGenerate={() => {
+          setIsPrintModalOpen(false);
+          window.open(`/print-tickets?type=${printConfig.type}&start=${printConfig.startNumber}&qty=${printConfig.quantity}`, '_blank');
         }}
-      </ModalWrapper>
+      />
+
+      <GlobalPopup popupMessage={popupMessage} onClose={() => setPopupMessage(null)} />
 
     </div>
   );

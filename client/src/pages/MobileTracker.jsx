@@ -670,7 +670,12 @@ const MobileTracker = () => {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ subscription })
                           });
-                          if (res.ok) saved = true;
+                          // Verify it's a real API response, not Vercel's SPA HTML fallback
+                          const contentType = res.headers.get('content-type') || '';
+                          if (res.ok && contentType.includes('application/json')) {
+                            const data = await res.json();
+                            if (data.success) saved = true;
+                          }
                         } catch (_) { /* Local API unreachable (Vercel) — fall through */ }
 
                         if (!saved) {
