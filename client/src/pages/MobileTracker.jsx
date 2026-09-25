@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, MonitorPlay, Users, Volume2, VolumeX, Bell, Clock } from 'lucide-react';
+import { Search, MonitorPlay, Users, Volume2, VolumeX, Bell, Clock, Share2, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
@@ -26,6 +26,8 @@ const MobileTracker = () => {
   const [ticketNumberInput, setTicketNumberInput] = useState('');
   const [error, setError] = useState(null);
   const [flashingTicketId, setFlashingTicketId] = useState(null);
+  const [showIOSInstallPrompt, setShowIOSInstallPrompt] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const soundEnabledRef = useRef(false);
   const unsubscribeSearchRef = useRef(null);
@@ -37,6 +39,20 @@ const MobileTracker = () => {
   useEffect(() => {
     myTicketResultRef.current = myTicketResult;
   }, [myTicketResult]);
+
+  // Detect iOS Safari (not installed as PWA)
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsStandalone(isInStandaloneMode);
+    if (isIOS && !isInStandaloneMode) {
+      // Check if user previously dismissed the prompt
+      const dismissed = sessionStorage.getItem('ios-install-dismissed');
+      if (!dismissed) {
+        setShowIOSInstallPrompt(true);
+      }
+    }
+  }, []);
 
   const audioCtxRef = useRef(null);
 
@@ -379,6 +395,49 @@ const MobileTracker = () => {
   return (
     <div className="min-h-screen bg-bg-color text-text-main p-4 md:p-6 font-sans w-full overflow-x-hidden box-border">
       <div className="w-full max-w-md mx-auto flex flex-col gap-6 pt-4 pb-10">
+
+        {/* iOS PWA Install Prompt Banner */}
+        <AnimatePresence>
+          {showIOSInstallPrompt && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              className="relative bg-gradient-to-br from-indigo-50 to-sky-50 dark:from-indigo-950/50 dark:to-sky-950/50 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4 shadow-lg"
+            >
+              <button
+                onClick={() => {
+                  setShowIOSInstallPrompt(false);
+                  sessionStorage.setItem('ios-install-dismissed', 'true');
+                }}
+                className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X size={16} className="text-text-muted" />
+              </button>
+              <div className="flex items-start gap-3">
+                <div className="bg-indigo-100 dark:bg-indigo-500/20 p-2.5 rounded-xl flex-shrink-0">
+                  <Download size={22} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="flex flex-col gap-1.5 pr-4">
+                  <h3 className="font-black text-sm text-text-main m-0">Install this app for notifications</h3>
+                  <p className="text-xs text-text-muted m-0 leading-relaxed">
+                    To receive push notifications on iPhone, you need to add this app to your Home Screen:
+                  </p>
+                  <ol className="text-xs text-text-muted m-0 pl-4 flex flex-col gap-1.5 mt-1">
+                    <li className="flex items-center gap-1.5">
+                      Tap the <Share2 size={14} className="text-indigo-500 inline-flex flex-shrink-0" /> <strong>Share</strong> button below
+                    </li>
+                    <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                    <li>Tap <strong>"Add"</strong> in the top-right corner</li>
+                    <li>Open the app from your Home Screen and try again!</li>
+                  </ol>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         {/* Simple Header */}
         <div className="text-center px-2">
@@ -559,8 +618,17 @@ const MobileTracker = () => {
                   <button 
                     onClick={async () => {
                       try {
+                        // Check if we're on iOS Safari but NOT installed as PWA
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                        const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
                         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                          alert('Push notifications are not supported by your browser.');
+                          if (isIOS && !isInStandaloneMode) {
+                            // Show the iOS install prompt instead of a dead-end alert
+                            setShowIOSInstallPrompt(true);
+                          } else {
+                            alert('Push notifications are not supported by your browser. Please try using a modern browser like Chrome or Edge.');
+                          }
                           return;
                         }
                         const registration = await navigator.serviceWorker.register('/service-worker.js');
