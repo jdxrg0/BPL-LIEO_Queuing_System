@@ -35,6 +35,7 @@ const MobileTracker = () => {
   const isInitialLoad = useRef(true);
   const flashTimeoutRef = useRef(null);
   const myTicketResultRef = useRef(null);
+  const autoSubscribedRef = useRef(false);
   
   useEffect(() => {
     myTicketResultRef.current = myTicketResult;
@@ -141,11 +142,32 @@ const MobileTracker = () => {
     };
 
     const fetchBranding = async () => {
+      // 1. Instant Load from Cache
+      try {
+        const cached = localStorage.getItem('bplo-app-settings');
+        if (cached) {
+          const data = JSON.parse(cached);
+          if (data.logoBase64) setFavicon(data.logoBase64);
+          if (data.websiteName) {
+            document.title = `${data.websiteName} | Ticket Tracker`;
+            setWebsiteName(data.websiteName);
+          }
+          if (data.services && data.services.length > 0) {
+            setServices(data.services);
+            if (!selectedServicePrefix) setSelectedServicePrefix(data.services[0].prefix);
+          }
+        }
+      } catch (e) {}
+
+      // 2. Fetch fresh data
       // Try local API first (works on LAN)
       try {
         const res = await fetch('/api/settings');
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
           const data = await res.json();
+          localStorage.setItem('bplo-app-settings', JSON.stringify(data));
+          
           if (data.logoBase64) setFavicon(data.logoBase64);
           if (data.websiteName) {
             document.title = `${data.websiteName} | Ticket Tracker`;
@@ -164,6 +186,8 @@ const MobileTracker = () => {
         const settingsDoc = await getDoc(doc(db, 'live_tickets', 'app_settings'));
         if (settingsDoc.exists()) {
           const data = settingsDoc.data();
+          localStorage.setItem('bplo-app-settings', JSON.stringify(data));
+          
           if (data.logoBase64) setFavicon(data.logoBase64);
           if (data.websiteName) {
             document.title = `${data.websiteName} | Ticket Tracker`;
@@ -313,10 +337,11 @@ const MobileTracker = () => {
   }, [servingTickets, myTicketResult]);
 
   // Extracted search logic so it can be called from both handleSearch and auto-restore
-  const startTicketSearch = (fullTicketNumber, isBackgroundRefresh = false) => {
+  const startTicketSearch = (fullTicketNumber, isBackgroundRefresh = false, shouldAutoSubscribe = false, permissionPromise = null) => {
     if (!isBackgroundRefresh) {
       setIsSearching(true);
       setMyTicketResult(null);
+      autoSubscribedRef.current = false;
     }
 
     if (unsubscribeSearchRef.current) unsubscribeSearchRef.current();
@@ -346,6 +371,17 @@ const MobileTracker = () => {
           const docSnap = querySnapshot.docs[0];
           const t = { id: docSnap.id, ...docSnap.data() };
           
+          if (shouldAutoSubscribe && t.status === 'WAITING' && !autoSubscribedRef.current) {
+            autoSubscribedRef.current = true;
+            if (permissionPromise) {
+              permissionPromise.then(status => {
+                if (status === 'granted') subscribeToPushNotifications(t, false);
+              }).catch(() => {});
+            } else {
+              subscribeToPushNotifications(t, false);
+            }
+          }
+
           if (t.status === 'WAITING') {
             // Subscribe to the WAITING queue to dynamically calculate people ahead
             if (!unsubscribeWaitQRef.current) {
@@ -417,7 +453,13 @@ const MobileTracker = () => {
     // Persist search so it survives PWA page reloads (e.g., after notification tap)
     sessionStorage.setItem('bplo-last-search', fullTicketNumber);
 
-    startTicketSearch(fullTicketNumber);
+    // Request permission synchronously on user gesture if not granted yet
+    let permissionPromise = null;
+    if ('Notification' in window && 'serviceWorker' in navigator && Notification.permission === 'default') {
+      permissionPromise = Notification.requestPermission();
+    }
+
+    startTicketSearch(fullTicketNumber, false, true, permissionPromise); // true = autoSubscribe
   };
 
   // Auto-restore search after PWA reload (e.g., returning from a notification)
@@ -427,6 +469,87 @@ const MobileTracker = () => {
       startTicketSearch(savedSearch);
     }
   }, []);
+
+  const subscribeToPushNotifications = async (ticketResult, isManualClick = false) => {
+    try {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (isManualClick) {
+          if (isIOS && !isInStandaloneMode) {
+            setShowIOSInstallPrompt(true);
+          } else {
+            alert('Push notifications are not supported by your browser. Please try using a modern browser like Chrome or Edge.');
+          }
+        }
+        return;
+      }
+
+      if (isManualClick && Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          alert('You must allow notifications to use this feature.');
+          return;
+        }
+      }
+
+      if (Notification.permission !== 'granted') return; // Silent abort for auto-subscribe
+
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      await navigator.serviceWorker.ready; 
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+
+      const publicVapidKey = 'BKEFqoADtJUFNkyGKbtQLA2JweGfs5Q-s1V5JxaoqHqWDaEI30qfimnMsc3yJ_09v9cIggnq8Jt5CnkJdHZ_H0U';
+      const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
+      const base64 = (publicVapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: outputArray
+      });
+
+      // Strategy: Try local API first (LAN), fall back to Firebase (Vercel)
+      let saved = false;
+      try {
+        const res = await fetch(`/api/tickets/track/${ticketResult.number}/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription })
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.success) saved = true;
+        }
+      } catch (_) {}
+
+      if (!saved) {
+        const { doc: fbDoc, setDoc: fbSetDoc } = await import('firebase/firestore');
+        await fbSetDoc(fbDoc(db, 'live_tickets', ticketResult.id.toString()), {
+          pushSubscription: JSON.stringify(subscription)
+        }, { merge: true });
+      }
+
+      if (isManualClick) {
+        alert('Success! You will be notified when your turn is approaching.');
+      }
+    } catch (err) {
+      console.error('Push error:', err);
+      if (isManualClick) {
+        alert('Failed to subscribe: ' + err.message);
+      }
+    }
+  };
 
   const getPriorityColor = (priority) => {
     if (priority === 'PWD') return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400';
@@ -666,82 +789,7 @@ const MobileTracker = () => {
 
                 {myTicketResult.status === 'WAITING' && (
                   <button 
-                    onClick={async () => {
-                      try {
-                        // Check if we're on iOS Safari but NOT installed as PWA
-                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-                        const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-                        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                          if (isIOS && !isInStandaloneMode) {
-                            // Show the iOS install prompt instead of a dead-end alert
-                            setShowIOSInstallPrompt(true);
-                          } else {
-                            alert('Push notifications are not supported by your browser. Please try using a modern browser like Chrome or Edge.');
-                          }
-                          return;
-                        }
-                        const registration = await navigator.serviceWorker.register('/service-worker.js');
-                        await navigator.serviceWorker.ready; // Ensure it's fully active
-
-                        // Fix: If there's an existing subscription (with an old VAPID key), unsubscribe first!
-                        // This prevents the "Registration failed - push service error"
-                        let subscription = await registration.pushManager.getSubscription();
-                        if (subscription) {
-                          await subscription.unsubscribe();
-                        }
-
-                        const permission = await Notification.requestPermission();
-                        if (permission !== 'granted') {
-                          alert('You must allow notifications to use this feature.');
-                          return;
-                        }
-
-                        // Base64 VAPID Key to Uint8Array
-                        const publicVapidKey = 'BKEFqoADtJUFNkyGKbtQLA2JweGfs5Q-s1V5JxaoqHqWDaEI30qfimnMsc3yJ_09v9cIggnq8Jt5CnkJdHZ_H0U';
-                        const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
-                        const base64 = (publicVapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
-                        const rawData = window.atob(base64);
-                        const outputArray = new Uint8Array(rawData.length);
-                        for (let i = 0; i < rawData.length; ++i) {
-                          outputArray[i] = rawData.charCodeAt(i);
-                        }
-
-                        subscription = await registration.pushManager.subscribe({
-                          userVisibleOnly: true,
-                          applicationServerKey: outputArray
-                        });
-
-                        // Strategy: Try local API first (LAN), fall back to Firebase (Vercel)
-                        let saved = false;
-                        try {
-                          const res = await fetch(`/api/tickets/track/${myTicketResult.number}/subscribe`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ subscription })
-                          });
-                          // Verify it's a real API response, not Vercel's SPA HTML fallback
-                          const contentType = res.headers.get('content-type') || '';
-                          if (res.ok && contentType.includes('application/json')) {
-                            const data = await res.json();
-                            if (data.success) saved = true;
-                          }
-                        } catch (_) { /* Local API unreachable (Vercel) — fall through */ }
-
-                        if (!saved) {
-                          // Fallback: Save directly to Firebase for Vercel users
-                          const { doc: fbDoc, setDoc: fbSetDoc } = await import('firebase/firestore');
-                          await fbSetDoc(fbDoc(db, 'live_tickets', myTicketResult.id.toString()), {
-                            pushSubscription: JSON.stringify(subscription)
-                          }, { merge: true });
-                        }
-
-                        alert('Success! You will be notified when your turn is approaching.');
-                      } catch (err) {
-                        console.error('Push error:', err);
-                        alert('Failed to subscribe: ' + err.message);
-                      }
-                    }}
+                    onClick={() => subscribeToPushNotifications(myTicketResult, true)}
                     className="flex items-center justify-center gap-2 w-full mt-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors shadow-sm"
                   >
                     <Bell size={18} /> Notify me when it's my turn
