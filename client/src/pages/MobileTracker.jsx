@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, MonitorPlay, Users, Volume2, VolumeX, Bell, Clock, Share2, X, Download } from 'lucide-react';
+import { Search, MonitorPlay, Users, Volume2, VolumeX, Bell, Clock, Share2, X, Download, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '../firebase';
 import { socket } from '../api';
@@ -38,9 +38,23 @@ const MobileTracker = () => {
   const autoSubscribedRef = useRef(false);
   
   const [toastMessage, setToastMessage] = useState(null);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   
   // No auto-clear; user must click OK to dismiss.
   
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (toastMessage) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [toastMessage]);
+
   useEffect(() => {
     myTicketResultRef.current = myTicketResult;
   }, [myTicketResult]);
@@ -346,6 +360,7 @@ const MobileTracker = () => {
       setIsSearching(true);
       setMyTicketResult(null);
       autoSubscribedRef.current = false;
+      setIsSubscribed(false);
     }
 
     if (unsubscribeSearchRef.current) unsubscribeSearchRef.current();
@@ -476,6 +491,7 @@ const MobileTracker = () => {
 
   const subscribeToPushNotifications = async (ticketResult, isManualClick = false) => {
     try {
+      setIsSubscribing(true);
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
@@ -484,21 +500,26 @@ const MobileTracker = () => {
           if (isIOS && !isInStandaloneMode) {
             setShowIOSInstallPrompt(true);
           } else {
-            alert('Push notifications are not supported by your browser. Please try using a modern browser like Chrome or Edge.');
+            setToastMessage({ type: 'error', text: 'Push notifications are not supported by your browser.' });
           }
         }
+        setIsSubscribing(false);
         return;
       }
 
       if (isManualClick && Notification.permission !== 'granted') {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-          alert('You must allow notifications to use this feature.');
+          setToastMessage({ type: 'error', text: 'You must allow notifications to use this feature.' });
+          setIsSubscribing(false);
           return;
         }
       }
 
-      if (Notification.permission !== 'granted') return; // Silent abort for auto-subscribe
+      if (Notification.permission !== 'granted') {
+        setIsSubscribing(false);
+        return; // Silent abort for auto-subscribe
+      }
 
       const registration = await navigator.serviceWorker.register('/service-worker.js');
       await navigator.serviceWorker.ready; 
@@ -547,11 +568,14 @@ const MobileTracker = () => {
       if (isManualClick) {
         setToastMessage({ type: 'success', text: 'Success! You will be notified when your turn is approaching.' });
       }
+      setIsSubscribed(true);
     } catch (err) {
       console.error('Push error:', err);
       if (isManualClick) {
         setToastMessage({ type: 'error', text: 'Failed to subscribe: ' + err.message });
       }
+    } finally {
+      setIsSubscribing(false);
     }
   };
 
@@ -793,10 +817,27 @@ const MobileTracker = () => {
 
                 {myTicketResult.status === 'WAITING' && (
                   <button 
-                    onClick={() => subscribeToPushNotifications(myTicketResult, true)}
-                    className="flex items-center justify-center gap-2 w-full mt-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors shadow-sm"
+                    onClick={() => {
+                      if (!isSubscribed && !isSubscribing) {
+                        subscribeToPushNotifications(myTicketResult, true);
+                      }
+                    }}
+                    disabled={isSubscribing || isSubscribed}
+                    className={`flex items-center justify-center gap-2 w-full mt-2 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm ${
+                      isSubscribed 
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 cursor-default'
+                        : isSubscribing 
+                        ? 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 opacity-70 cursor-not-allowed'
+                        : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 cursor-pointer'
+                    }`}
                   >
-                    <Bell size={18} /> Notify me when it's my turn
+                    {isSubscribed ? (
+                      <><Check size={18} /> Notifications Enabled</>
+                    ) : isSubscribing ? (
+                      <><span className="animate-spin">↻</span> Subscribing...</>
+                    ) : (
+                      <><Bell size={18} /> Notify me when it's my turn</>
+                    )}
                   </button>
                 )}
                 
