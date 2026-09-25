@@ -37,6 +37,16 @@ const MobileTracker = () => {
   const myTicketResultRef = useRef(null);
   const autoSubscribedRef = useRef(false);
   
+  const [toastMessage, setToastMessage] = useState(null);
+  
+  // Clear toast after 3s
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   useEffect(() => {
     myTicketResultRef.current = myTicketResult;
   }, [myTicketResult]);
@@ -541,12 +551,12 @@ const MobileTracker = () => {
       }
 
       if (isManualClick) {
-        alert('Success! You will be notified when your turn is approaching.');
+        setToastMessage({ type: 'success', text: 'Success! You will be notified when your turn is approaching.' });
       }
     } catch (err) {
       console.error('Push error:', err);
       if (isManualClick) {
-        alert('Failed to subscribe: ' + err.message);
+        setToastMessage({ type: 'error', text: 'Failed to subscribe: ' + err.message });
       }
     }
   };
@@ -919,6 +929,25 @@ const MobileTracker = () => {
       >
         {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
       </button>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 z-[100] text-sm font-bold w-max max-w-[90vw] text-center border ${
+              toastMessage.type === 'success' 
+                ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/30' 
+                : 'bg-rose-500 text-white border-rose-600 shadow-rose-500/30'
+            }`}
+          >
+            {toastMessage.type === 'success' ? <Bell size={18} /> : <span className="font-black text-lg">!</span>}
+            {toastMessage.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
