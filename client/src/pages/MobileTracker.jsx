@@ -87,6 +87,23 @@ const MobileTracker = () => {
       if (audioCtxRef.current?.state === 'suspended') {
         audioCtxRef.current.resume();
       }
+      
+      // Play a silent sound to permanently unlock audio on strict mobile browsers
+      try {
+        const ctx = audioCtxRef.current;
+        if (ctx) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          gain.gain.value = 0; // completely silent
+          osc.start();
+          osc.stop(ctx.currentTime + 0.1);
+        }
+      } catch (err) {
+        console.warn("Could not unlock audio:", err);
+      }
+
       setSoundEnabled(true);
       soundEnabledRef.current = true;
       // Remove listeners after first interaction
