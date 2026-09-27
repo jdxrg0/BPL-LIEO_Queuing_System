@@ -4,6 +4,7 @@ const { calculatePredictiveWaitTime } = require('../utils/smartQueueEngine');
 const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../utils/capacityTracker');
 const { buildServiceFlagMap, getUnallocatableServices } = require('../utils/serviceFlagMap');
 const { ensureMinimumCoverage } = require('../utils/capacityCoverage');
+const { FLAG_ORDER, SLOT_STYLES, DEFAULT_SLOT_STYLE, getServiceSlots } = require('../../shared/serviceSlots.js');
 
 const getServices = async (req, res) => {
   try {

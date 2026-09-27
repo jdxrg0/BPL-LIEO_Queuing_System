@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function PrintTickets() {
   const [searchParams] = useSearchParams();
@@ -136,32 +137,43 @@ export default function PrintTickets() {
             return (
               <div key={i} style={{ 
                 border: '1px dashed #94a3b8', 
-                padding: '1rem 0.5rem', 
+                padding: '0.5rem 0.25rem', 
                 display: 'flex', 
                 flexDirection: 'column', 
                 alignItems: 'center', 
                 justifyContent: 'center',
                 textAlign: 'center',
-                height: '2in',
+                minHeight: '2in',
                 boxSizing: 'border-box',
-                background: '#ffffff'
+                background: '#ffffff',
+                pageBreakInside: 'avoid',
+                breakInside: 'avoid'
               }}>
                 {settings.logoBase64 && (
-                  <img src={settings.logoBase64} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain', marginBottom: '0.25rem' }} />
+                  <img src={settings.logoBase64} alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', marginBottom: '0.2rem' }} />
                 )}
-                <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
                   {settings.websiteName || 'BPLO System'}
                 </div>
                 
-                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: 1 }}>
                   {ticketId}
                 </div>
                 
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#334155', marginTop: '0.2rem', marginBottom: '0.35rem' }}>
                   {getServiceLabel(typeCode)}
                 </div>
+
+                <QRCodeSVG 
+                  value={`${window.location.origin}/tracker?ticket=${ticketId}`} 
+                  size={80} 
+                />
+
+                <div style={{ fontSize: '0.55rem', color: '#64748b', marginTop: '0.2rem', fontWeight: 500 }}>
+                  Scan to track your ticket
+                </div>
                 
-                <div style={{ fontSize: '0.55rem', color: '#64748b', marginTop: 'auto', borderTop: '1px solid #e2e8f0', paddingTop: '0.25rem', width: '90%' }}>
+                <div style={{ fontSize: '0.5rem', color: '#64748b', marginTop: '0.35rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.2rem', width: '90%' }}>
                   Please wait for your number.
                 </div>
               </div>

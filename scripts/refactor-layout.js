@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const layoutPath = path.join(__dirname, 'client/src/components/Layout/Layout.jsx');
+const layoutPath = path.join(__dirname, '../client/src/components/Layout/Layout.jsx');
 let content = fs.readFileSync(layoutPath, 'utf8');
 
 // 1. Add import

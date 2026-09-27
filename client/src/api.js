@@ -133,6 +133,9 @@ export const api = {
   getRecentCalled: async () => {
     return request(`${API_URL}/tickets/recent-called`);
   },
+  getDisplayTickets: async () => {
+    return request(`${API_URL}/tickets/display`);
+  },
   getMyServing: async (userId) => {
     return request(`${API_URL}/tickets/my-serving/${userId}`, { headers: { ...getAuthHeaders() } });
   },

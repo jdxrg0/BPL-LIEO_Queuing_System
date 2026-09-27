@@ -266,8 +266,8 @@ export default function SettingsModal({
                     
                     <div className="col-span-2 flex items-center justify-between pb-5 border-b border-border">
                       <div className="pr-4">
-                        <span className="font-extrabold text-text-main text-base block mb-1">Auto-Adaptive Allocation</span>
-                        <span className="text-text-muted text-xs font-semibold leading-relaxed block">Automatically rebalance counter queues on the fly based on incoming workload and bottlenecks.</span>
+                        <span className="font-extrabold text-text-main text-base block mb-1">Auto-Assign Staff to Busy Windows</span>
+                        <span className="text-text-muted text-xs font-semibold leading-relaxed block">Automatically shift staff focus to the windows with the longest wait times.</span>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
                         <input type="checkbox" className="sr-only peer" checked={settingsForm.autoAdaptive} onChange={e => setSettingsForm(prev => ({ ...prev, autoAdaptive: e.target.checked }))} />
@@ -275,13 +275,15 @@ export default function SettingsModal({
                       </label>
                     </div>
 
-                    <RangeSlider label="Reallocation Threshold (Mins)" value={settingsForm.autoBalanceThreshold} min={5} max={60} step={5} onChange={val => setSettingsForm(prev => ({...prev, autoBalanceThreshold: val}))} />
-                    <RangeSlider label="SLA Panic Threshold (Mins)" value={settingsForm.slaThreshold} min={5} max={60} step={5} onChange={val => setSettingsForm(prev => ({...prev, slaThreshold: val}))} />
+                    <div className="col-span-2 pt-2">
+                      <RangeSlider label="Workload Panic Threshold (Mins)" description="If predicted wait times exceed this limit, the system enters 'crunch mode' to assist busy windows." value={settingsForm.autoBalanceThreshold} min={5} max={60} step={5} onChange={val => setSettingsForm(prev => ({...prev, autoBalanceThreshold: val}))} />
+                      <RangeSlider label="Maximum Wait Time Limit (Mins)" description="If a person waits longer than this limit, the system automatically forces them to the front." value={settingsForm.slaThreshold} min={5} max={60} step={5} onChange={val => setSettingsForm(prev => ({...prev, slaThreshold: val}))} />
+                    </div>
                     
-                    <div className="col-span-2 grid grid-cols-3 gap-4 pt-2">
-                      <InputGroup label="Zipper Ratio" type="number" min={1} max={10} value={settingsForm.zipperRatio} onChange={val => setSettingsForm(prev => ({...prev, zipperRatio: parseInt(val)||1}))} inputClass={inputClass} />
-                      <InputGroup label="Aging Rate" type="number" min={0} max={1} step={0.1} value={settingsForm.agingRate} onChange={val => setSettingsForm(prev => ({...prev, agingRate: parseFloat(val)||0}))} inputClass={inputClass} />
-                      <InputGroup label="Skip Limit" type="number" min={1} max={20} value={settingsForm.skipLimit} onChange={val => setSettingsForm(prev => ({...prev, skipLimit: parseInt(val)||1}))} inputClass={inputClass} />
+                    <div className="col-span-2 grid grid-cols-3 gap-6 pt-4 border-t border-border">
+                      <InputGroup label="Priority to Regular Ratio" description="Force 1 Regular ticket after this many Priority tickets in a row." type="number" min={1} max={10} value={settingsForm.zipperRatio} onChange={val => setSettingsForm(prev => ({...prev, zipperRatio: parseInt(val)||1}))} inputClass={inputClass} />
+                      <InputGroup label="Wait Time Bonus Rate" description="How fast people gain priority points for waiting." type="number" min={0} max={1} step={0.1} value={settingsForm.agingRate} onChange={val => setSettingsForm(prev => ({...prev, agingRate: parseFloat(val)||0}))} inputClass={inputClass} />
+                      <InputGroup label="Max Skips Allowed" description="Max times a Regular ticket can be skipped by Priority before locking them to the front." type="number" min={1} max={20} value={settingsForm.skipLimit} onChange={val => setSettingsForm(prev => ({...prev, skipLimit: parseInt(val)||1}))} inputClass={inputClass} />
                     </div>
                   </div>
                 </div>
@@ -427,10 +429,13 @@ function Header({ title, description, noMargin }) {
   );
 }
 
-function InputGroup({ label, value, onChange, type = "text", placeholder, inputClass, ...props }) {
+function InputGroup({ label, description, value, onChange, type = "text", placeholder, inputClass, ...props }) {
   return (
     <div className="flex flex-col">
-      <label className="text-[11px] font-black text-text-muted uppercase tracking-wider mb-2 pl-1">{label}</label>
+      <div className="flex flex-col mb-2 pl-1">
+        <label className="text-[11px] font-black text-text-muted uppercase tracking-wider">{label}</label>
+        {description && <span className="text-[10px] text-text-muted font-medium mt-0.5 leading-relaxed pr-1">{description}</span>}
+      </div>
       <input 
         type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         className={inputClass} {...props}
@@ -439,12 +444,15 @@ function InputGroup({ label, value, onChange, type = "text", placeholder, inputC
   );
 }
 
-function RangeSlider({ label, value, min, max, step, onChange }) {
+function RangeSlider({ label, description, value, min, max, step, onChange }) {
   return (
-    <div className="flex flex-col mb-5">
-      <div className="flex items-center justify-between mb-3 pl-1">
-        <label className="text-[11px] font-black text-text-muted uppercase tracking-wider">{label}</label>
-        <span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-lg text-sm">{value}m</span>
+    <div className="flex flex-col mb-6">
+      <div className="flex items-start justify-between mb-3 pl-1">
+        <div className="flex flex-col pr-4">
+          <label className="text-[11px] font-black text-text-muted uppercase tracking-wider">{label}</label>
+          {description && <span className="text-xs text-text-muted font-medium mt-1 leading-relaxed">{description}</span>}
+        </div>
+        <span className="font-black text-primary bg-primary/10 px-3 py-1 rounded-lg text-sm shrink-0 mt-1">{value}m</span>
       </div>
       <input 
         type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(parseInt(e.target.value))}

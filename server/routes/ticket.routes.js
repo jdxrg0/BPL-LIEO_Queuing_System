@@ -3,6 +3,9 @@ const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
 
+router.get('/', verifyToken, ticketController.getTickets);
+router.get('/history', verifyToken, ticketController.getHistory);
+router.get('/display', ticketController.getDisplayTickets);
 router.get('/postponed', ticketController.getPostponedTickets);
 router.get('/waiting', ticketController.getWaitingTickets);
 router.get('/recent-called', ticketController.getRecentCalled);

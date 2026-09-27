@@ -3,5 +3,6 @@ const router = express.Router();
 const statsController = require('../controllers/stats.controller');
 
 router.get('/', statsController.getStats);
+router.get('/history', statsController.getHistory);
 
 module.exports = router;

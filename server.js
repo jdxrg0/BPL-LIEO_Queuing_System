@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
 
 // Import configuration and routes
 const socketConfig = require('./server/config/socket');
@@ -22,14 +23,21 @@ const { apiLimiter } = require('./server/middlewares/rateLimit.middleware');
 const app = express();
 const server = http.createServer(app);
 
+// Allowed origins: Vite dev server and production CLIENT_URL
+const allowedOrigins = ['http://localhost:5173'];
+if (process.env.CLIENT_URL) {
+  allowedOrigins.push(process.env.CLIENT_URL);
+}
+
 // Initialize Socket.io
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: allowedOrigins }
 });
 socketConfig.init(io);
 
 // Global Middleware
-app.use(cors());
+app.use(helmet());
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '10mb' }));
 
 // Mount Routes
@@ -57,17 +65,41 @@ setInterval(() => autoBalanceCounters(), 5 * 60 * 1000);
 
 // Start Server
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, async () => {
-  console.log(`Server listening on port ${PORT}`);
-  // Enable SQLite WAL for reads/writes to share the DB file with less lock contention
+
+async function startServer() {
+  // Reset all users' online status on startup before accepting connections
   try {
-    await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN "isOnline" BOOLEAN NOT NULL DEFAULT 0;');
+    } catch (e) {
+      // Column already exists or cannot alter table
+    }
+    await prisma.user.updateMany({
+      data: { isOnline: false }
+    });
+    console.log('Reset all user online status on startup');
   } catch (err) {
-    console.warn('Could not enable SQLite WAL mode:', err.message);
+    console.warn('Could not reset user online status on startup:', err.message);
   }
-  // Perform cloud sync catch up
-  await catchUpSync(prisma);
-  // Push branding (logo, title) to Firebase for the Vercel tracker
-  const settings = await prisma.settings.findUnique({ where: { id: 1 } });
-  if (settings) await syncSettings(settings);
-});
+
+  server.listen(PORT, async () => {
+    console.log(`Server listening on port ${PORT}`);
+    // Enable SQLite WAL for reads/writes to share the DB file with less lock contention
+    try {
+      await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
+    } catch (err) {
+      console.warn('Could not enable SQLite WAL mode:', err.message);
+    }
+    // Perform cloud sync catch up
+    await catchUpSync(prisma);
+    // Push branding (logo, title) to Firebase for the Vercel tracker
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    if (settings) await syncSettings(settings);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, server, io };

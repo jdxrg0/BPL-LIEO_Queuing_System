@@ -20,6 +20,7 @@ model User {
   caterRenewal    Boolean @default(true)
   caterRetirement Boolean @default(true)
   autoAssign      Boolean @default(true)
+  isOnline        Boolean @default(false)
 
   // Relations
   ticketsCreated Ticket[] @relation("TicketCreator")
@@ -73,6 +74,8 @@ model Ticket {
   
   servedByUserId   Int?
   servedByUser     User?    @relation("TicketServer", fields: [servedByUserId], references: [id])
+
+  audits           QueueAudit[]
 }
 
 model Settings {
@@ -105,4 +108,19 @@ model TicketCounter {
   service   Service  @relation(fields: [serviceId], references: [id])
 
   @@id([serviceId, date])
+}
+
+model QueueAudit {
+  id          String   @id @default(uuid())
+  ticketId    Int
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromStatus  String?  // null on creation
+  toStatus    String
+  performedBy String?  // userId of actor (null for system actions)
+  windowNumber Int?
+  note        String?  // e.g. "priority-aged", "auto-assigned", "manual-reassign"
+  createdAt   DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([createdAt])
 }

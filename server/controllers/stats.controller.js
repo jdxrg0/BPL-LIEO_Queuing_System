@@ -255,6 +255,72 @@ const getStats = async (req, res) => {
   }
 };
 
+const getHistory = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const skip = (page - 1) * limit;
+
+    const { startDate, endDate, serviceId, status } = req.query;
+    const where = {
+      status: status || 'COMPLETED'
+    };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        where.completedAt = { gte: start, lte: end };
+      }
+    }
+
+    if (serviceId) {
+      const parsedServiceId = parseInt(serviceId, 10);
+      if (!isNaN(parsedServiceId)) {
+        where.serviceId = parsedServiceId;
+      }
+    }
+
+    const [total, tickets] = await Promise.all([
+      prisma.ticket.count({ where }),
+      prisma.ticket.findMany({
+        where,
+        include: {
+          service: true,
+          counter: true,
+          servedByUser: {
+            select: { id: true, name: true, username: true }
+          },
+          createdByUser: {
+            select: { id: true, name: true, username: true }
+          }
+        },
+        orderBy: { completedAt: 'desc' },
+        skip,
+        take: limit
+      })
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    });
+  } catch (error) {
+    console.error("Get History Error:", error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
-  getStats
+  getStats,
+  getHistory
 };

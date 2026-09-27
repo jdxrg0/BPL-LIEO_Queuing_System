@@ -71,36 +71,57 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { windowNumber, role, name, username, currentPassword, caterNew, caterRenewal, caterRetirement, autoAssign } = req.body;
+    const {
+      name,
+      username,
+      password,
+      windowNumber,
+      role,
+      currentPassword,
+      caterNew,
+      caterRenewal,
+      caterRetirement,
+      autoAssign
+    } = req.body;
     
     const userRecord = await prisma.user.findUnique({ where: { id: parseInt(id) } });
     if (!userRecord) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify current password
-    let isMatch = false;
-    if (userRecord.passwordHash.startsWith('$2a$') || userRecord.passwordHash.startsWith('$2b$')) {
-      isMatch = await bcrypt.compare(currentPassword, userRecord.passwordHash);
-    } else {
-      isMatch = userRecord.passwordHash === currentPassword;
+    // Verify current password if provided
+    if (currentPassword) {
+      let isMatch = false;
+      if (userRecord.passwordHash.startsWith('$2a$') || userRecord.passwordHash.startsWith('$2b$')) {
+        isMatch = await bcrypt.compare(currentPassword, userRecord.passwordHash);
+      } else {
+        isMatch = userRecord.passwordHash === currentPassword;
+      }
+
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Incorrect current password' });
+      }
     }
 
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Incorrect current password' });
+    // Whitelist only allowed fields for update
+    const updateData = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (username !== undefined) updateData.username = username;
+
+    // Hash password if provided
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.passwordHash = await bcrypt.hash(password, salt);
     }
 
-    let updateData = {};
-    if (role) updateData.role = role;
-    if (name) updateData.name = name;
-    if (username) updateData.username = username;
-    if (caterNew !== undefined) updateData.caterNew = caterNew;
-    if (caterRenewal !== undefined) updateData.caterRenewal = caterRenewal;
-    if (caterRetirement !== undefined) updateData.caterRetirement = caterRetirement;
-    if (autoAssign !== undefined) updateData.autoAssign = autoAssign;
+    // Allow role update only if the requesting user is ADMIN
+    if (role !== undefined && req.user && req.user.role === 'ADMIN') {
+      updateData.role = role;
+    }
 
+    // Window number assignment
     const counterChanged = windowNumber !== undefined;
-
     if (windowNumber !== undefined) {
       if (windowNumber) {
         const counterName = `Window ${windowNumber}`;
@@ -113,15 +134,72 @@ const updateUser = async (req, res) => {
         updateData.counterId = null;
       }
     }
-    
+
+    // 17 service capability boolean flags
+    const capabilityFlags = [
+      'canBusinessNew',
+      'canBusinessRenewal',
+      'canOrderOfPayment',
+      'canReleasing',
+      'canCertification',
+      'canBuildingPermit',
+      'canZoning',
+      'canOccupancy',
+      'canMechElec',
+      'canFencing',
+      'canExcavation',
+      'canDemolition',
+      'canFireSafetyInspection',
+      'canFireSafetyEvaluation',
+      'canFSICOccupancy',
+      'canFSICBusinessNew',
+      'canFSICBusinessRenewal'
+    ];
+
+    for (const flag of capabilityFlags) {
+      if (req.body[flag] !== undefined) {
+        updateData[flag] = Boolean(req.body[flag]);
+      }
+    }
+
+    // Catering permission flags
+    if (caterNew !== undefined) updateData.caterNew = Boolean(caterNew);
+    if (caterRenewal !== undefined) updateData.caterRenewal = Boolean(caterRenewal);
+    if (caterRetirement !== undefined) updateData.caterRetirement = Boolean(caterRetirement);
+    if (autoAssign !== undefined) updateData.autoAssign = Boolean(autoAssign);
+
     const user = await prisma.user.update({
       where: { id: parseInt(id) },
       data: updateData,
       include: { counter: true }
     });
     
-    const updatedUser = { id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId, counter: user.counter, caterNew: user.caterNew, caterRenewal: user.caterRenewal, caterRetirement: user.caterRetirement, autoAssign: user.autoAssign };
-    socketConfig.getIo().emit('userUpdated', updatedUser);
+    const updatedUser = {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      counterId: user.counterId,
+      counter: user.counter,
+      caterNew: user.caterNew,
+      caterRenewal: user.caterRenewal,
+      caterRetirement: user.caterRetirement,
+      autoAssign: user.autoAssign
+    };
+
+    for (const flag of capabilityFlags) {
+      if (user[flag] !== undefined) {
+        updatedUser[flag] = user[flag];
+      }
+    }
+
+    try {
+      if (socketConfig.getIo()) {
+        socketConfig.getIo().emit('userUpdated', updatedUser);
+      }
+    } catch (socketErr) {
+      // Socket may not be available in all contexts (e.g. tests)
+    }
 
     // Staff composition changed (logged in/out of a window): re-balance within
     // ~3s so a window is never left uncovered until the next 5-minute tick.

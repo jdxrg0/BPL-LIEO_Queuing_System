@@ -1,6 +1,5 @@
 const prisma = require('../config/db');
-
-const FLAG_ORDER = ['caterNew', 'caterRenewal', 'caterRetirement'];
+const { FLAG_ORDER } = require('../../shared/serviceSlots.js');
 
 function buildServiceFlagMap(services) {
   const sorted = [...services].sort((a, b) => a.id - b.id);

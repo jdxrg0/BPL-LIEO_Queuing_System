@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
-const { calculateSmartScores } = require("./utils/smartQueueEngine");
+const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require("../server/utils/capacityTracker");
+const { calculatePredictiveWaitTime } = require("../server/utils/smartQueueEngine");
 
 const prisma = new PrismaClient();
 
@@ -11,6 +12,9 @@ async function main() {
     orderBy: { createdAt: 'asc' }
   });
   
+  const { activeCount, activeUserIds } = await getActiveStaffProfiles('R');
+  const avgServiceTimeMins = await getDynamicAverageServiceTime(service.id, activeUserIds);
+  
   const priorityGroups = await prisma.priorityGroup.findMany();
   const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
     autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
@@ -21,6 +25,10 @@ async function main() {
     take: 50
   });
 
+  console.log("existingQueue length:", existingQueue.length);
+  console.log("activeCount:", activeCount);
+  console.log("avgServiceTimeMins:", avgServiceTimeMins);
+
   const mockNewTicket = {
     id: -1,
     priorityType: 'REGULAR',
@@ -29,14 +37,15 @@ async function main() {
     skipCount: 0
   };
 
+  const { calculateSmartScores } = require("../server/utils/smartQueueEngine");
   const phantomQueue = [...existingQueue, mockNewTicket];
-  
-  process.env.NODE_ENV = 'test'; // To keep _smartScore
   const sortedPhantomQueue = calculateSmartScores(phantomQueue, priorityGroups, settings, recentTickets);
   
-  sortedPhantomQueue.forEach(t => {
-    console.log(`ID: ${t.id}, Pri: ${t.priorityType}, Created: ${t.createdAt}, waitMins: ${(Date.now() - new Date(t.createdAt).getTime())/60000}, Score: ${t._smartScore}`);
-  });
+  const trueRank = sortedPhantomQueue.findIndex(t => t.id === -1) + 1;
+  console.log("trueRank:", trueRank);
+  
+  const predicted = Math.round((trueRank / activeCount) * avgServiceTimeMins);
+  console.log("Predicted:", predicted);
 }
 
 main().finally(() => prisma.$disconnect());

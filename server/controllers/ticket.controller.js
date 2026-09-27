@@ -3,6 +3,7 @@ const socketConfig = require('../config/socket');
 const { scheduleAutoBalance } = require('./meta.controller');
 const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
 const { buildServiceFlagMap, getActiveServices } = require('../utils/serviceFlagMap');
+const { logAudit } = require('../utils/auditLog');
 
 const getPostponedTickets = async (req, res) => {
   try {
@@ -107,22 +108,30 @@ const getWaitingTickets = async (req, res) => {
       orderBy: { createdAt: 'asc' }
     });
     
-    // 1. Fetch Config
-    const priorityGroups = await prisma.priorityGroup.findMany();
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
-      autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
-    };
+    // Use the new priority aging logic for queue display
+    const { AGING_RATE } = require('../utils/smartQueueEngine');
+    const now = Date.now();
     
-    // 2. Fetch Recent Tickets for Zipper Engine
-    const recentTickets = await prisma.ticket.findMany({
-      where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
-      orderBy: { servedAt: 'desc' },
-      take: 50
+    tickets = tickets.map(t => {
+      const isPriority = t.priorityType && t.priorityType !== 'REGULAR';
+      const basePriority = isPriority ? 1000 : 0;
+      
+      const createdTime = new Date(t.createdAt).getTime();
+      const waitTimeMinutes = Math.max(0, (now - createdTime) / 60000);
+      
+      const agingBonus = waitTimeMinutes * AGING_RATE;
+      const score = basePriority + agingBonus;
+      
+      return { ...t, _effectiveScore: score };
     });
 
-    // 3. Delegate to the Pure Utility Engine
-    tickets = calculateSmartScores(tickets, priorityGroups, settings, recentTickets);
-    
+    tickets.sort((a, b) => {
+      if (Math.abs(a._effectiveScore - b._effectiveScore) > 0.001) {
+        return b._effectiveScore - a._effectiveScore;
+      }
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
     res.json(tickets);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -135,6 +144,45 @@ const getRecentCalled = async (req, res) => {
       where: { status: 'SERVING' },
       include: { service: true, counter: true },
       orderBy: { servedAt: 'desc' }
+    });
+    res.json(tickets);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const getDisplayTickets = async (req, res) => {
+  try {
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        status: { in: ['WAITING', 'SERVING'] }
+      },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        priorityType: true,
+        estimatedWaitMins: true,
+        createdAt: true,
+        servedAt: true,
+        service: {
+          select: {
+            id: true,
+            name: true,
+            prefix: true
+          }
+        },
+        counter: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: [
+        { servedAt: 'desc' },
+        { createdAt: 'asc' }
+      ]
     });
     res.json(tickets);
   } catch (error) {
@@ -242,6 +290,14 @@ const createTicket = async (req, res) => {
       include: { service: true }
     });
 
+    await logAudit({
+      ticketId: ticket.id,
+      fromStatus: null,
+      toStatus: 'WAITING',
+      performedBy: req.user ? req.user.id : (createdByUserId || null),
+      note: 'ticket-created'
+    });
+
     socketConfig.getIo().emit('ticketCreated', ticket);
 
     if (settings?.autoAdaptive) {
@@ -331,6 +387,14 @@ const callTicket = async (req, res) => {
         include: { counter: true, service: true }
       });
 
+      await logAudit({
+        ticketId: ticket.id,
+        fromStatus: existingTicket.status || 'WAITING',
+        toStatus: 'SERVING',
+        performedBy: req.user ? req.user.id : (servedByUserId || null),
+        windowNumber: counterId
+      });
+
       // Smart Queue: Increment skipCount ONLY on the first call, not on recalls
       await prisma.ticket.updateMany({
         where: {
@@ -397,6 +461,11 @@ const updateTicketStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
+    const existingTicket = await prisma.ticket.findUnique({
+      where: { id: parseInt(id) },
+      select: { status: true, counterId: true }
+    });
+
     const ticket = await prisma.ticket.update({
       where: { id: parseInt(id) },
       data: { 
@@ -404,6 +473,15 @@ const updateTicketStatus = async (req, res) => {
         completedAt: status === 'COMPLETED' ? new Date() : null,
         ...(status === 'WAITING' || status === 'POSTPONED' ? { servedByUserId: null, counterId: null, servedAt: null } : {})
       }
+    });
+
+    const oldStatus = existingTicket ? existingTicket.status : null;
+    await logAudit({
+      ticketId: ticket.id,
+      fromStatus: oldStatus,
+      toStatus: status,
+      performedBy: req.user ? req.user.id : null,
+      windowNumber: existingTicket?.counterId || ticket.counterId || null
     });
 
     socketConfig.getIo().emit('queueUpdated');
@@ -528,15 +606,210 @@ const subscribeToPush = async (req, res) => {
   }
 };
 
+const autoAssignNext = async (req, res) => {
+  try {
+    const { counterId, servedByUserId } = req.body;
+    
+    // Fallback to req.user.id if servedByUserId is not provided
+    const userId = servedByUserId ? Number(servedByUserId) : (req.user ? req.user.id : null);
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const caller = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, caterNew: true, caterRenewal: true, caterRetirement: true }
+    });
+    if (!caller) return res.status(401).json({ error: 'User not found' });
+
+    // Build the list of allowed service prefixes for this staff member
+    const activeServices = await getActiveServices();
+    const { flagByPrefix } = buildServiceFlagMap(activeServices);
+    
+    const allowedPrefixes = [];
+    if (caller.role === 'ADMIN') {
+      allowedPrefixes.push(...Object.keys(flagByPrefix));
+    } else {
+      for (const prefix in flagByPrefix) {
+        if (caller[flagByPrefix[prefix]]) {
+          allowedPrefixes.push(prefix);
+        }
+      }
+    }
+
+    // 1. Fetch ALL waiting tickets that match the staff's capabilities
+    const waitingTickets = await prisma.ticket.findMany({
+      where: {
+        status: 'WAITING',
+        service: {
+          prefix: { in: allowedPrefixes }
+        }
+      },
+      include: { service: true }
+    });
+
+    if (!waitingTickets || waitingTickets.length === 0) {
+      return res.status(404).json({ error: 'No tickets available for your capabilities.' });
+    }
+
+    // 2. Pass them through getNextTicketWithAging() to pick the best one
+    const { getNextTicketWithAging } = require('../utils/smartQueueEngine');
+    const bestTicket = getNextTicketWithAging(waitingTickets);
+
+    if (!bestTicket) {
+      return res.status(404).json({ error: 'No valid tickets found.' });
+    }
+
+    // 3. Use the returned ticket for assignment
+    const ticket = await prisma.ticket.update({
+      where: { id: bestTicket.id },
+      data: {
+        status: 'SERVING',
+        counterId,
+        servedByUserId: userId,
+        servedAt: new Date()
+      },
+      include: { counter: true, service: true }
+    });
+
+    await logAudit({
+      ticketId: ticket.id,
+      fromStatus: 'WAITING',
+      toStatus: 'SERVING',
+      performedBy: null,
+      windowNumber: counterId,
+      note: 'auto-assigned'
+    });
+
+    // Update skip counts for older tickets in the same service
+    await prisma.ticket.updateMany({
+      where: {
+        status: 'WAITING',
+        serviceId: ticket.serviceId,
+        createdAt: { lt: ticket.createdAt }
+      },
+      data: {
+        skipCount: { increment: 1 }
+      }
+    });
+
+    socketConfig.getIo().emit('queueUpdated');
+    socketConfig.getIo().emit('ticketCalled', ticket);
+
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    if (settings?.autoAdaptive) {
+      scheduleAutoBalance();
+    }
+
+    syncTicket(ticket);
+    notifyApproachingTickets(ticket.serviceId);
+
+    // Send push notification
+    try {
+      let pushSub = bestTicket.pushSubscription;
+      const db = getDb();
+      if (!pushSub && db) {
+        const docRef = await db.collection('live_tickets').doc(ticket.id.toString()).get();
+        if (docRef.exists && docRef.data().pushSubscription) {
+          pushSub = docRef.data().pushSubscription;
+        }
+      }
+      
+      if (pushSub) {
+        const sub = typeof pushSub === 'string' ? JSON.parse(pushSub) : pushSub;
+        await webpush.sendNotification(sub, JSON.stringify({
+          title: 'It is your turn!',
+          body: `Your ticket ${ticket.number} has been called via Auto-Assign. Please proceed to Counter ${counterId}.`,
+          url: `/?ticket=${ticket.number}`,
+          ticketNumber: ticket.number
+        }));
+      }
+    } catch (err) {
+      console.error(`Push failed for auto-assigned ticket ${ticket.number}:`, err);
+    }
+
+    res.json(ticket);
+  } catch (error) {
+    console.error('Error in autoAssignNext:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const getTickets = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const skip = (page - 1) * limit;
+
+    const { status, serviceId, priorityType } = req.query;
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+    if (serviceId) {
+      const parsedServiceId = parseInt(serviceId, 10);
+      if (!isNaN(parsedServiceId)) {
+        where.serviceId = parsedServiceId;
+      }
+    }
+    if (priorityType) {
+      where.priorityType = priorityType;
+    }
+
+    const [total, tickets] = await Promise.all([
+      prisma.ticket.count({ where }),
+      prisma.ticket.findMany({
+        where,
+        include: {
+          service: true,
+          counter: true,
+          servedByUser: {
+            select: { id: true, name: true, username: true }
+          },
+          createdByUser: {
+            select: { id: true, name: true, username: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      })
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const { getHistory } = require('./stats.controller');
+
 module.exports = {
+  getTickets,
+  getHistory,
   getPostponedTickets,
   getWaitingTickets,
   getRecentCalled,
+  getDisplayTickets,
   getMyServing,
   createTicket,
   deleteTicket,
   callTicket,
   updateTicketStatus,
   trackTicket,
-  subscribeToPush
+  subscribeToPush,
+  autoAssignNext
 };

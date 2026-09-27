@@ -502,8 +502,16 @@ const MobileTracker = () => {
     startTicketSearch(fullTicketNumber, false, true, permissionPromise); // true = autoSubscribe
   };
 
-  // Auto-restore search after PWA reload (e.g., returning from a notification)
+  // Auto-restore search from URL query parameter (QR code scan) or PWA reload
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlTicket = params.get('ticket');
+    if (urlTicket) {
+      localStorage.setItem('bplo-last-search', urlTicket);
+      startTicketSearch(urlTicket, false, false, null);
+      return;
+    }
+
     const savedSearch = localStorage.getItem('bplo-last-search');
     if (savedSearch) {
       startTicketSearch(savedSearch, false, false, null);

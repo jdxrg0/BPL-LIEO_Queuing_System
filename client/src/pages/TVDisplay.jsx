@@ -59,13 +59,14 @@ export default function TVDisplay() {
   const fetchRecent = async () => {
     try {
       const [tickets, waitTimes] = await Promise.all([
-        api.getRecentCalled(),
+        api.getDisplayTickets(),
         api.getLiveWaitTimes()
       ]);
       setLiveWaitTimes(waitTimes && typeof waitTimes === 'object' ? waitTimes : {});
       
       if (Array.isArray(tickets) && tickets.length > 0) {
-        const myTickets = tickets.filter(t => (t.id % totalMonitors) === (monitorIdx - 1));
+        const serving = tickets.filter(t => t.status === 'SERVING');
+        const myTickets = serving.filter(t => (t.id % totalMonitors) === (monitorIdx - 1));
         setDisplayTickets(myTickets);
       } else {
         setDisplayTickets([]);
@@ -199,7 +200,7 @@ export default function TVDisplay() {
                   </div>
                   <div className="whitespace-nowrap pl-[1vw] text-red-900 font-extrabold text-right leading-none mt-[1vh] relative z-0"
                        style={{ fontSize: `min(7cqw, ${maxFontVh * 0.8}vh)` }}>
-                    {t.counter.name.replace('Window ', 'W')}
+                    {t.counter?.name ? t.counter.name.replace('Window ', 'W') : '---'}
                   </div>
                 </div>
               );

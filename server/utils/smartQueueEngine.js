@@ -138,4 +138,47 @@ function calculatePredictiveWaitTime(
   return Math.round((trueRank / activeCounters) * avgServiceTimeMins);
 }
 
-module.exports = { calculateSmartScores, calculatePredictiveWaitTime };
+const AGING_RATE = 50; // points per minute
+
+/**
+ * Returns the best next ticket based on effective priority score with aging.
+ * PRIORITY tickets get base 1000, REGULAR gets 0.
+ * Aging bonus: Wait time in minutes * AGING_RATE.
+ */
+function getNextTicketWithAging(waitingTickets) {
+  if (!waitingTickets || waitingTickets.length === 0) return null;
+
+  const now = Date.now();
+  
+  const scoredTickets = waitingTickets.map(t => {
+    const isPriority = t.priorityType && t.priorityType !== 'REGULAR';
+    const basePriority = isPriority ? 1000 : 0;
+    
+    const createdTime = new Date(t.createdAt).getTime();
+    const waitTimeMinutes = Math.max(0, (now - createdTime) / 60000);
+    
+    const agingBonus = waitTimeMinutes * AGING_RATE;
+    const score = basePriority + agingBonus;
+    
+    return { ...t, _effectiveScore: score };
+  });
+
+  scoredTickets.sort((a, b) => {
+    if (Math.abs(a._effectiveScore - b._effectiveScore) > 0.001) {
+      return b._effectiveScore - a._effectiveScore;
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  // Log promotion
+  const selected = scoredTickets[0];
+  if (selected.priorityType === 'REGULAR' && selected._effectiveScore >= 1000) {
+    console.log(`[Priority Aging] Promoted REGULAR ticket ${selected.number} over PRIORITY with score ${selected._effectiveScore.toFixed(2)}`);
+  }
+
+  // Remove temporary property
+  const { _effectiveScore, ...originalTicket } = selected;
+  return originalTicket;
+}
+
+module.exports = { calculateSmartScores, calculatePredictiveWaitTime, getNextTicketWithAging, AGING_RATE };
