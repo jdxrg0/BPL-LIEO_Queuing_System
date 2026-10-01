@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
@@ -22,7 +23,7 @@ const backupDatabase = () => {
 
     // Copy file
     fs.copyFileSync(DB_PATH, backupFile);
-    console.log(`[DB Backup] Database backed up successfully to ${backupFile}`);
+    logger.info(`[DB Backup] Database backed up successfully to ${backupFile}`);
 
     // Cleanup old backups (keep last 30)
     const files = fs.readdirSync(BACKUP_DIR)
@@ -34,21 +35,22 @@ const backupDatabase = () => {
       const toDelete = files.slice(30);
       for (const file of toDelete) {
         fs.unlinkSync(path.join(BACKUP_DIR, file.name));
-        console.log(`[DB Backup] Deleted old backup: ${file.name}`);
+        logger.info(`[DB Backup] Deleted old backup: ${file.name}`);
       }
     }
   } catch (error) {
-    console.error('[DB Backup] Failed to backup database:', error);
+    logger.error('[DB Backup] Failed to backup database:', error);
   }
 };
 
 const initAutomatedBackups = () => {
   // Run every night at 12:00 AM
   cron.schedule('0 0 * * *', () => {
-    console.log('[DB Backup] Running scheduled nightly backup...');
+    logger.info('[DB Backup] Running scheduled nightly backup...');
     backupDatabase();
   });
-  console.log('[DB Backup] Automated nightly backups initialized.');
+  logger.info('[DB Backup] Automated nightly backups initialized.');
 };
 
 module.exports = { initAutomatedBackups, backupDatabase };
+

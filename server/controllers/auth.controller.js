@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
@@ -55,7 +56,7 @@ const login = async (req, res) => {
       res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error:', error);
     res.status(500).json({ error: 'Server error during login' });
   }
 };
@@ -79,9 +80,10 @@ const logout = async (req, res) => {
     }
     res.json({ success: true });
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error('Logout error:', error);
     res.status(500).json({ error: 'Server error during logout' });
   }
 };
 
 module.exports = { login, logout };
+

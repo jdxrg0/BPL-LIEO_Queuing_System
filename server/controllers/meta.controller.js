@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { calculatePredictiveWaitTime } = require('../utils/smartQueueEngine');
@@ -50,7 +51,7 @@ const getSettings = async (req, res) => {
     
     res.json({ ...settings, services: activeServices });
   } catch (err) {
-    console.error("Error fetching settings:", err);
+    logger.error("Error fetching settings:", err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -72,7 +73,7 @@ const updateSettings = async (req, res) => {
 
     res.json(settings);
   } catch (err) {
-    console.error("Error updating settings:", err);
+    logger.error("Error updating settings:", err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -312,7 +313,7 @@ const autoBalanceCounters = async (req, res) => {
     if (res) res.json(result);
     return result;
   } catch (err) {
-    console.error('Error auto-balancing counters:', err);
+    logger.error('Error auto-balancing counters:', err);
     if (res) res.status(500).json({ error: 'Server error' });
     return { error: 'Server error' };
   }
@@ -376,7 +377,7 @@ const getLiveWaitTimes = async (req, res) => {
 
     res.json(waitTimes);
   } catch (error) {
-    console.error("Error fetching live wait times:", error);
+    logger.error("Error fetching live wait times:", error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -405,7 +406,7 @@ const resetAllData = async (req, res) => {
     
     res.json({ success: true, message: 'All tickets have been successfully deleted.' });
   } catch (error) {
-    console.error('Failed to reset data:', error);
+    logger.error('Failed to reset data:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -432,7 +433,7 @@ const getPriorityGroups = async (req, res) => {
     
     res.json(groups);
   } catch (err) {
-    console.error('Error fetching priority groups:', err);
+    logger.error('Error fetching priority groups:', err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -446,7 +447,7 @@ const createPriorityGroup = async (req, res) => {
     socketConfig.getIo().emit('priorityGroupsUpdated');
     res.json(group);
   } catch (err) {
-    console.error('Error creating priority group:', err);
+    logger.error('Error creating priority group:', err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -469,7 +470,7 @@ const updatePriorityGroup = async (req, res) => {
     socketConfig.getIo().emit('priorityGroupsUpdated');
     res.json(group);
   } catch (err) {
-    console.error('Error updating priority group:', err);
+    logger.error('Error updating priority group:', err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -481,7 +482,7 @@ const deletePriorityGroup = async (req, res) => {
     socketConfig.getIo().emit('priorityGroupsUpdated');
     res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting priority group:', err);
+    logger.error('Error deleting priority group:', err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -501,3 +502,4 @@ module.exports = {
   updatePriorityGroup,
   deletePriorityGroup
 };
+

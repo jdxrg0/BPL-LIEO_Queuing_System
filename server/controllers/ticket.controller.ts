@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 export {};
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
@@ -102,12 +103,12 @@ const notifyApproachingTickets = async (serviceId) => {
             });
           }
         } catch (err) {
-          console.error(`Push failed for ticket ${ticket.number}:`, err);
+          logger.error(`Push failed for ticket ${ticket.number}:`, err);
         }
       }
     }
   } catch (error) {
-    console.error('Error notifying approaching tickets:', error);
+    logger.error('Error notifying approaching tickets:', error);
   }
 };
 
@@ -398,7 +399,7 @@ const deleteTicket = async (req, res) => {
     
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    logger.error(err);
     res.status(500).json({ error: 'Failed to delete ticket' });
   }
 };
@@ -520,7 +521,7 @@ const callTicket = async (req, res) => {
         await sendSMS(existingTicket.phoneNumber, `BPLO Rosario: ${prefix}Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`);
       }
     } catch (err) {
-      console.error(`Push/SMS failed for called ticket ${ticket.number}:`, err);
+      logger.error(`Push/SMS failed for called ticket ${ticket.number}:`, err);
     }
 
     // Sync to Cloud (Non-blocking) - this updates Firebase's updatedAt timestamp
@@ -638,7 +639,7 @@ const trackTicket = async (req, res) => {
 
     res.json({ ticket, trueRank, estimatedWaitMins });
   } catch (error) {
-    console.error('Error tracking ticket:', error);
+    logger.error('Error tracking ticket:', error);
     res.status(500).json({ error: 'Failed to track ticket' });
   }
 };
@@ -689,7 +690,7 @@ const subscribeToPush = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error saving subscription:', error);
+    logger.error('Error saving subscription:', error);
     res.status(500).json({ error: 'Failed to save subscription' });
   }
 };
@@ -720,7 +721,7 @@ const subscribeToSMS = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error saving SMS subscription:', error);
+    logger.error('Error saving SMS subscription:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -860,12 +861,12 @@ const autoAssignNext = async (req, res) => {
         await sendSMS(bestTicket.phoneNumber, `BPLO Rosario: Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`);
       }
     } catch (err) {
-      console.error(`Push/SMS failed for auto-assigned ticket ${ticket.number}:`, err);
+      logger.error(`Push/SMS failed for auto-assigned ticket ${ticket.number}:`, err);
     }
 
     res.json(ticket);
   } catch (error) {
-    console.error('Error in autoAssignNext:', error);
+    logger.error('Error in autoAssignNext:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -924,7 +925,7 @@ const getTickets = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching tickets:', error);
+    logger.error('Error fetching tickets:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -970,7 +971,7 @@ const bulkCreateTickets = async (req, res) => {
       skipped: tickets.length - toInsert.length
     });
   } catch (error) {
-    console.error('Error in bulkCreateTickets:', error);
+    logger.error('Error in bulkCreateTickets:', error);
     res.status(500).json({ error: 'Server error bulk creating tickets' });
   }
 };
@@ -1005,12 +1006,12 @@ const checkInTicket = async (req, res) => {
     }
 
     // Sync to Firebase
-    syncTicket(updated).catch(err => console.error('Firebase sync failed on check-in:', err));
-    syncQueueState(updated.serviceId).catch(err => console.error('Firebase queue state sync failed:', err));
+    syncTicket(updated).catch(err => logger.error('Firebase sync failed on check-in:', err));
+    syncQueueState(updated.serviceId).catch(err => logger.error('Firebase queue state sync failed:', err));
 
     res.json(updated);
   } catch (error) {
-    console.error('Error in checkInTicket:', error);
+    logger.error('Error in checkInTicket:', error);
     res.status(500).json({ error: 'Server error checking in ticket' });
   }
 };
@@ -1063,7 +1064,7 @@ exports.exportTickets = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=tickets_export.csv`);
     res.send(csv);
   } catch (error) {
-    console.error('Failed to export tickets:', error);
+    logger.error('Failed to export tickets:', error);
     res.status(500).json({ error: 'Failed to export tickets' });
   }
 };
@@ -1089,3 +1090,4 @@ module.exports = {
   checkInTicket,
   exportTickets: exports.exportTickets
 };
+

@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const path = require('path');
@@ -15,7 +16,7 @@ try {
   });
   
   db = getFirestore(app);
-  console.log('Firebase Admin initialized successfully.');
+  logger.info('Firebase Admin initialized successfully.');
 } catch (error) {
   console.warn('Firebase Admin failed to initialize. Cloud Sync will be disabled.', error.message);
 }
@@ -59,11 +60,11 @@ const syncTicket = async (ticket) => {
       await db.collection('live_tickets').doc(ticketId).set(syncData, { merge: true });
       
       if (isOffline) {
-        console.log('Cloud Sync: Reconnected and synced ticket', ticket.number);
+        logger.info('Cloud Sync: Reconnected and synced ticket', ticket.number);
         isOffline = false;
         // Trigger a full catch-up sync in the background to push any missed tickets
         if (typeof catchUpSync === 'function') {
-          catchUpSync().catch(err => console.error("Offline recovery sync failed:", err.message));
+          catchUpSync().catch(err => logger.error("Offline recovery sync failed:", err.message));
         }
       }
     } catch (error) {
@@ -110,7 +111,7 @@ const removeTicket = async (ticketId) => {
 const catchUpSync = async (prismaInstance = prisma) => {
   if (!db) return;
   
-  console.log('Cloud Sync: Performing catch-up sync...');
+  logger.info('Cloud Sync: Performing catch-up sync...');
   try {
     const activeTickets = await prismaInstance.ticket.findMany({
       where: {
@@ -124,7 +125,7 @@ const catchUpSync = async (prismaInstance = prisma) => {
       await syncTicket(ticket);
     }
     
-    console.log(`Cloud Sync: Catch-up complete. Synced ${activeTickets.length} active tickets.`);
+    logger.info(`Cloud Sync: Catch-up complete. Synced ${activeTickets.length} active tickets.`);
     
     // Run automated cleanup of tickets older than 24h
     await autoCleanupOldCloudTickets();
@@ -157,7 +158,7 @@ const autoCleanupOldCloudTickets = async () => {
       batch.delete(doc.ref);
     });
     await batch.commit();
-    console.log(`Cloud Sync: Automatically cleaned up ${snapshot.docs.length} old tickets from Firebase.`);
+    logger.info(`Cloud Sync: Automatically cleaned up ${snapshot.docs.length} old tickets from Firebase.`);
   } catch (error) {
     console.warn('Cloud Sync Error: Auto-cleanup failed', error.message);
   }
@@ -177,9 +178,9 @@ const clearCloudDatabase = async () => {
       batch.delete(doc.ref);
     });
     await batch.commit();
-    console.log(`Cloud Sync: Cleared ${snapshot.docs.length} tickets from Firebase.`);
+    logger.info(`Cloud Sync: Cleared ${snapshot.docs.length} tickets from Firebase.`);
   } catch (error) {
-    console.error('Cloud Sync Error: Failed to clear database', error.message);
+    logger.error('Cloud Sync Error: Failed to clear database', error.message);
   }
 };
 
@@ -204,7 +205,7 @@ const syncSettings = async (settings) => {
       _type: 'settings', // marker to distinguish from real tickets
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
-    console.log('Cloud Sync: Synced branding settings and services to Firebase.');
+    logger.info('Cloud Sync: Synced branding settings and services to Firebase.');
   } catch (error) {
     console.warn('Cloud Sync Error: Could not sync settings', error.message);
   }
@@ -275,3 +276,4 @@ module.exports = {
   syncQueueState,
   getDb: () => db
 };
+

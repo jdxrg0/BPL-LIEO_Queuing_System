@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const { Vonage } = require('@vonage/server-sdk');
 
 /**
@@ -38,14 +39,14 @@ const sendSMS = async (number, message) => {
     const response = await vonage.sms.send({ to, from, text: message });
     
     if (response.messages[0].status === "0") {
-      console.log(`SMS sent successfully to ${formattedNumber} via Vonage.`);
+      logger.info(`SMS sent successfully to ${formattedNumber} via Vonage.`);
       return true;
     } else {
-      console.error(`Vonage SMS failed with error: ${response.messages[0]['error-text']}`);
+      logger.error(`Vonage SMS failed with error: ${response.messages[0]['error-text']}`);
       return false;
     }
   } catch (error) {
-    console.error('Error sending SMS via Vonage:', error.message);
+    logger.error('Error sending SMS via Vonage:', error.message);
     return false;
   }
 };
@@ -53,3 +54,4 @@ const sendSMS = async (number, message) => {
 module.exports = {
   sendSMS
 };
+

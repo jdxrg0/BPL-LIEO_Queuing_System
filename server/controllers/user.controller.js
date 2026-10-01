@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
@@ -63,7 +64,7 @@ const createUser = async (req, res) => {
     });
     res.json({ id: user.id, username: user.username, name: user.name, role: user.role, counterId: user.counterId });
   } catch (error) {
-    console.error('Error creating user:', error);
+    logger.error('Error creating user:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -199,7 +200,7 @@ const updateUser = async (req, res) => {
     
     res.json(updatedUser);
   } catch (error) {
-    console.error('Error updating user:', error);
+    logger.error('Error updating user:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -265,7 +266,7 @@ const updateUserProfile = async (req, res) => {
 
     res.json(safeUser);
   } catch (err) {
-    console.error("Error updating user profile:", err);
+    logger.error("Error updating user profile:", err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -331,7 +332,7 @@ const deleteUser = async (req, res) => {
     try {
       socketConfig.getIo().emit('userDeleted', parseInt(id));
     } catch (e) {
-      console.error('Socket error on deleteUser:', e);
+      logger.error('Socket error on deleteUser:', e);
     }
     
     res.json({ success: true });
@@ -350,3 +351,4 @@ module.exports = {
   resetPassword,
   deleteUser
 };
+

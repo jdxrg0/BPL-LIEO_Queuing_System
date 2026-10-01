@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'bplo-backend',
-      script: 'server.js',
+      script: 'npm',
+      args: 'start',
       watch: false,
       instances: 1,
       exec_mode: 'fork',

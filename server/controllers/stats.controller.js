@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const prisma = require('../config/db');
 const { buildServiceFlagMap } = require('../utils/serviceFlagMap');
 
@@ -353,7 +354,7 @@ const getStats = async (req, res) => {
       spark
     });
   } catch (error) {
-    console.error("Stats Error:", error);
+    logger.error("Stats Error:", error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -418,7 +419,7 @@ const getHistory = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Get History Error:", error);
+    logger.error("Get History Error:", error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -463,8 +464,9 @@ const getLiveFlow = async (req, res) => {
       avgServiceMinsLastHour: avgServiceMins
     });
   } catch (error) {
-    console.error("Live flow error:", error);
+    logger.error("Live flow error:", error);
     res.status(500).json({ error: 'Server error' });
   }
 };
 module.exports.getLiveFlow = getLiveFlow;
+

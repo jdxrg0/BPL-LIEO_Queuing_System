@@ -20,6 +20,7 @@ export default function StaffDashboard({ user }: { user: User }) {
   
   interface ToastMsg { title: string; message: string; type: 'success' | 'info' | 'error' }
   const [toastMessage, setToastMessage] = useState<ToastMsg | null>(null);
+  const [isAutoCalling, setIsAutoCalling] = useState(false);
   
   const lastCaterPrefixRef = useRef<string | undefined>(undefined);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -227,6 +228,32 @@ export default function StaffDashboard({ user }: { user: User }) {
             <div className="absolute inset-0 bg-warning w-0 group-hover:w-full transition-all duration-300 ease-out z-0"></div>
             <Undo2 size={14} className="relative z-10" />
             <span className="relative z-10">Returns {postponedTickets.length > 0 && `(${postponedTickets.length})`}</span>
+          </button>
+          
+          <button 
+            onClick={async () => {
+              if (!activeCounterId) {
+                setToastMessage({ title: 'Error', message: 'You are not assigned to a window. Contact an Admin.', type: 'error' });
+                return;
+              }
+              setIsAutoCalling(true);
+              try {
+                await api.autoAssignNext(activeCounterId, user.id);
+                // Success, queue will update via websocket
+              } catch (err: any) {
+                setToastMessage({ title: 'Notice', message: err.message || 'No suitable tickets found for your services.', type: 'info' });
+              } finally {
+                setIsAutoCalling(false);
+              }
+            }}
+            disabled={!activeCounterId || isAutoCalling}
+            className="ml-3 group relative px-4 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-sm cursor-pointer hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAutoCalling ? (
+              <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Auto-Calling...</>
+            ) : (
+              <>⚡ Auto-Call Next</>
+            )}
           </button>
         </div>
         

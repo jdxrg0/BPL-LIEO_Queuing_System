@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const prisma = require('../config/db');
 
 /**
@@ -22,8 +23,9 @@ async function logAudit({ ticketId, fromStatus, toStatus, performedBy = null, wi
       }
     });
   } catch (err) {
-    console.error('[AuditLog] Failed to write audit entry:', err.message);
+    logger.error('[AuditLog] Failed to write audit entry:', err.message);
   }
 }
 
 module.exports = { logAudit };
+

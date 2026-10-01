@@ -1,7 +1,8 @@
+const logger = require('../utils/logger');
 const { Prisma } = require('@prisma/client');
 
 const errorHandler = (err, req, res, next) => {
-  console.error(`[API Error] ${req.method} ${req.url} -`, err.message);
+  logger.error(`[API Error] ${req.method} ${req.url} -`, err.message);
 
   // 1. Handle Prisma Database Errors automatically
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -50,3 +51,4 @@ const errorHandler = (err, req, res, next) => {
 };
 
 module.exports = errorHandler;
+

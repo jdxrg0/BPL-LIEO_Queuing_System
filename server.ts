@@ -1,3 +1,4 @@
+const logger = require('./server/utils/logger');
 export {};
 require('dotenv').config();
 const express = require('express');
@@ -23,11 +24,11 @@ const { apiLimiter } = require('./server/middlewares/rateLimit.middleware');
 
 // --- Robust Error Handling ---
 process.on('uncaughtException', (err) => {
-  console.error('CRITICAL ERROR: Uncaught Exception:', err);
+  logger.error('CRITICAL ERROR: Uncaught Exception:', err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('CRITICAL ERROR: Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('CRITICAL ERROR: Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const app = express();
@@ -51,6 +52,17 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 // Mount Routes
+// Health Check Endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check DB connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ok', db: 'connected', timestamp: new Date() });
+  } catch (error) {
+    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date() });
+  }
+});
+
 app.use('/api', authRoutes); 
 app.use('/api', apiLimiter);
 app.use('/api/users', verifyToken, userRoutes);
@@ -71,7 +83,7 @@ const activeSockets = new Map(); // userId -> Set of socket.ids
 
 // Socket.io Event Listeners
 io.on('connection', (socket: any) => {
-  console.log('Client connected:', socket.id);
+  logger.info('Client connected:', socket.id);
   
   // Track userId when client identifies itself
   socket.on('identify', async (userId: string | number) => {
@@ -114,13 +126,13 @@ io.on('connection', (socket: any) => {
         });
         io.emit('userOnlineStatus', { userId: parseInt(uidStr), isOnline: true });
       } catch(e) {
-        console.error('Error updating online status:', e);
+        logger.error('Error updating online status:', e);
       }
     }
   });
 
   socket.on('disconnect', async () => {
-    console.log('Client disconnected:', socket.id);
+    logger.info('Client disconnected:', socket.id);
     if (socket.userId) {
       const uidStr = String(socket.userId);
       const sockets = activeSockets.get(uidStr);
@@ -136,7 +148,7 @@ io.on('connection', (socket: any) => {
             });
             io.emit('userOnlineStatus', { userId: parseInt(uidStr), isOnline: false });
           } catch(e) {
-            console.error('Error updating offline status:', e);
+            logger.error('Error updating offline status:', e);
           }
         }
       }
@@ -164,13 +176,13 @@ async function startServer() {
     await prisma.user.updateMany({
       data: { isOnline: false }
     });
-    console.log('Reset all user online status on startup');
+    logger.info('Reset all user online status on startup');
   } catch (err: any) {
     console.warn('Could not reset user online status on startup:', err.message);
   }
 
   server.listen(PORT, async () => {
-    console.log(`Server listening on port ${PORT}`);
+    logger.info(`Server listening on port ${PORT}`);
     try {
       await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
     } catch (err: any) {
@@ -192,32 +204,32 @@ let isShuttingDown = false;
 const cleanup = async (signal: string) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  console.log(`\n[Graceful Shutdown] Received ${signal || 'kill signal'}, shutting down safely...`);
+  logger.info(`\n[Graceful Shutdown] Received ${signal || 'kill signal'}, shutting down safely...`);
   
   if (io) {
     io.close(() => {
-      console.log('[Graceful Shutdown] Socket.io closed.');
+      logger.info('[Graceful Shutdown] Socket.io closed.');
     });
   }
 
   server.close(async () => {
-    console.log('[Graceful Shutdown] HTTP server closed.');
+    logger.info('[Graceful Shutdown] HTTP server closed.');
     try {
       await prisma.$disconnect();
-      console.log('[Graceful Shutdown] Database disconnected.');
+      logger.info('[Graceful Shutdown] Database disconnected.');
       if (signal === 'SIGUSR2') {
         process.kill(process.pid, 'SIGUSR2');
       } else {
         process.exit(0);
       }
     } catch (err) {
-      console.error('[Graceful Shutdown] Error during database disconnect:', err);
+      logger.error('[Graceful Shutdown] Error during database disconnect:', err);
       process.exit(1);
     }
   });
 
   setTimeout(() => {
-    console.error('[Graceful Shutdown] Could not close connections in time, forcefully shutting down');
+    logger.error('[Graceful Shutdown] Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 };
@@ -227,3 +239,4 @@ process.on('SIGINT', () => cleanup('SIGINT'));
 process.once('SIGUSR2', () => cleanup('SIGUSR2'));
 
 module.exports = { app, server, io };
+

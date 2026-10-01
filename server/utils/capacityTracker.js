@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const prisma = require('../config/db');
 const { buildServiceFlagMap, getActiveServices } = require('./serviceFlagMap');
 
@@ -30,7 +31,7 @@ async function getActiveStaffProfiles(servicePrefix) {
       activeUserIds
     };
   } catch (err) {
-    console.error("Error in getActiveStaffProfiles:", err);
+    logger.error("Error in getActiveStaffProfiles:", err);
     return { activeCount: 0, activeUserIds: [] };
   }
 }
@@ -98,9 +99,10 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
 
     return Math.max(0.5, effectiveAvgServiceTime);
   } catch (err) {
-    console.error("Error calculating dynamic average:", err);
+    logger.error("Error calculating dynamic average:", err);
     return 5;
   }
 }
 
 module.exports = { getActiveStaffProfiles, getDynamicAverageServiceTime };
+
