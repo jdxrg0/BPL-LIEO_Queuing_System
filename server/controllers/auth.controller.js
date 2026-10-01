@@ -60,4 +60,28 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { login };
+
+const logout = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (userId) {
+      await prisma.user.update({
+        where: { id: parseInt(userId) },
+        data: { isOnline: false }
+      });
+      
+      try {
+        const socketConfig = require('../config/socket');
+        if (socketConfig.getIo()) {
+          socketConfig.getIo().emit('userOnlineStatus', { userId: parseInt(userId), isOnline: false });
+        }
+      } catch(e) {}
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Server error during logout' });
+  }
+};
+
+module.exports = { login, logout };

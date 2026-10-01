@@ -135,25 +135,12 @@ const updateUser = async (req, res) => {
       }
     }
 
-    // 17 service capability boolean flags
+    // Schema-defined capability flags
     const capabilityFlags = [
-      'canBusinessNew',
-      'canBusinessRenewal',
-      'canOrderOfPayment',
-      'canReleasing',
-      'canCertification',
-      'canBuildingPermit',
-      'canZoning',
-      'canOccupancy',
-      'canMechElec',
-      'canFencing',
-      'canExcavation',
-      'canDemolition',
-      'canFireSafetyInspection',
-      'canFireSafetyEvaluation',
-      'canFSICOccupancy',
-      'canFSICBusinessNew',
-      'canFSICBusinessRenewal'
+      'caterNew',
+      'caterRenewal',
+      'caterRetirement',
+      'autoAssign'
     ];
 
     for (const flag of capabilityFlags) {

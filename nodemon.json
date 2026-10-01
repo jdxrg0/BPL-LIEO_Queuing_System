@@ -2,6 +2,15 @@
   "ignore": [
     "prisma/*.db",
     "prisma/*.db-journal",
-    "client/*"
-  ]
+    "prisma/*.db-wal",
+    "prisma/*.db-shm",
+    "client/*",
+    "logs/*",
+    "*.log",
+    "output.json",
+    "output.txt",
+    "settings_out.txt"
+  ],
+  "ext": "js,json",
+  "delay": 1500
 }

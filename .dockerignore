@@ -1,0 +1,12 @@
+node_modules
+client/node_modules
+tracker/node_modules
+prisma/*.db
+prisma/*.db-journal
+backups
+logs
+.env
+.env.test
+.git
+.DS_Store
+Thesis Documents

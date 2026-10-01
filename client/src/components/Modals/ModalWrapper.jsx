@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function ModalWrapper({ isOpen, zIndex = 100, children, bg = 'rgba(0,0,0,0.5)' }) {
+export default function ModalWrapper({ isOpen, zIndex = 100, children, bg = 'rgba(0,0,0,0.5)', onBackgroundClick }) {
   const [render, setRender] = useState(isOpen);
   const [cachedChildren, setCachedChildren] = useState(null);
 
@@ -26,10 +26,17 @@ export default function ModalWrapper({ isOpen, zIndex = 100, children, bg = 'rgb
   
   const contentToRender = isClosing ? cachedChildren : (typeof children === 'function' ? children() : children);
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget && onBackgroundClick) {
+      onBackgroundClick();
+    }
+  };
+
   return (
     <div 
       className={`modal-overlay fixed inset-0 flex items-center justify-center p-4 ${isClosing ? 'modal-overlay-close' : ''}`}
       style={{ background: bg, zIndex }}
+      onClick={handleOverlayClick}
     >
       {React.Children.map(contentToRender, child => {
         if (React.isValidElement(child)) {

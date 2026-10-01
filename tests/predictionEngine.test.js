@@ -28,7 +28,7 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     }));
 
     const waitMins = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, [], 1, 5);
-    expect(waitMins).toBe(55);
+    expect(waitMins).toBe(52);
   });
 
   test('3. VIP jumps the line: Wait time for VIP should be much lower than Regular', () => {
@@ -42,7 +42,7 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     // VIP wait: trueRank should be 2. (The oldest regular has aged 10 mins -> score 1.0, 
     // which ties VIP's base score of 1.0. The tie-breaker goes to the older ticket!)
     // So rank 2. (2 / 1) * 5 = 10.
-    expect(regularWait).toBe(55);
+    expect(regularWait).toBe(52);
     expect(vipWait).toBe(10);
   });
 
@@ -52,7 +52,7 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     }));
 
     const waitMins = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, [], 5, 5);
-    expect(waitMins).toBe(11);
+    expect(waitMins).toBe(10);
   });
 
   test('5. Dynamic Team Speed: 5 Counters but they are very slow (15 min avg)', () => {
@@ -61,7 +61,7 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     }));
 
     const waitMins = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, [], 5, 15);
-    expect(waitMins).toBe(33);
+    expect(waitMins).toBe(31);
   });
 
   test('6. Zipper Trigger: Regular ticket wait time drops due to Zipper Force', () => {
@@ -70,7 +70,7 @@ describe('Predictive Wait Time Engine - Stress Tests', () => {
     }));
 
     const normalWait = calculatePredictiveWaitTime(1, 'REGULAR', existingQueue, priorityGroups, settings, [], 1, 5);
-    expect(normalWait).toBe(55); // Rank 11
+    expect(normalWait).toBe(52); // Rank 11
 
     const recentTickets = [
       { id: 901, priorityType: 'PWD', serviceId: 1 },

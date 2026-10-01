@@ -1,15 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Monitor, Tablet, User, Settings, LogOut, LayoutDashboard, Shield, Landmark, Menu, Plus, FilePlus, RefreshCw, Archive, Check, ChevronDown, X } from 'lucide-react';
+import { Monitor, FileText, Printer, PieChart, Activity, TrendingUp, Users, Tablet, User, Settings, LogOut, LayoutDashboard, Shield, Landmark, Menu, Plus, FilePlus, RefreshCw, Archive, Check, ChevronDown, X, AlertTriangle } from 'lucide-react';
 import HoldButton from '../Buttons/HoldButton';
 import ThemeToggle from '../Theme/ThemeToggle';
 import { api, socket } from '../../api';
 import ModalWrapper from '../Modals/ModalWrapper';
 import SettingsModal from '../Modals/SettingsModal';
+import PrintTicketsModal from '../Admin/PrintTicketsModal';
+import GlobalPopup from '../Admin/GlobalPopup';
+
+const ADMIN_TABS = [
+  { id: 'overview', label: 'Overview', icon: <PieChart size={18} /> },
+  { id: 'live', label: 'Live Queue', icon: <Activity size={18} /> },
+  { id: 'analytics', label: 'Analytics', icon: <TrendingUp size={18} /> },
+  { id: 'staff', label: 'Staff & Roles', icon: <Users size={18} /> }
+];
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printConfig, setPrintConfig] = useState({ type: 'N', startNumber: '1', quantity: 1, format: 'A4' });
+  const [popupMessage, setPopupMessage] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
     if (saved === null) return true; // Default to collapsed
@@ -47,6 +59,7 @@ export default function Layout({ user, onLogout }) {
   // Account Settings
   const [accountForm, setAccountForm] = useState({ name: user?.name || '', profilePictureBase64: user?.profilePictureBase64 || '' });
   const [passwordChange, setPasswordChange] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordFeedback, setPasswordFeedback] = useState({ type: '', message: '' });
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
@@ -217,6 +230,34 @@ export default function Layout({ user, onLogout }) {
     return <Plus size={18} />;
   };
 
+  const renderCateredTags = () => {
+    if (!user) return null;
+    const tags = [];
+
+    if (user.caterNew) {
+      tags.push(<span key="nw" className="text-emerald-600 dark:text-emerald-400">NW</span>);
+    }
+    if (user.caterRenewal) {
+      tags.push(<span key="rnw" className="text-sky-600 dark:text-sky-400">RNW</span>);
+    }
+    if (user.caterRetirement) {
+      tags.push(<span key="r" className="text-rose-600 dark:text-rose-400">R</span>);
+    }
+
+    if (tags.length === 0) return <span className="text-slate-400">None</span>;
+
+    return (
+      <div className="flex gap-1">
+        {tags.map((tag, i) => (
+          <React.Fragment key={i}>
+            {tag}
+            {i < tags.length - 1 && <span className="text-slate-300 dark:text-slate-600">,</span>}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   const getServiceColor = (name) => {
     const lower = name.toLowerCase();
     if (lower.includes('renew')) return { bg: 'var(--color-primary)', main: '#ffffff' }; 
@@ -312,13 +353,13 @@ export default function Layout({ user, onLogout }) {
               to="/staff" 
               title={isSidebarCollapsed ? "Staff Dashboard" : ""}
               className={`
-                flex items-center gap-4 py-3 px-4 rounded-xl no-underline font-semibold transition-all duration-300 overflow-hidden whitespace-nowrap
+                flex items-center gap-4 py-3 px-4 rounded-xl no-underline font-semibold transition-all duration-300 overflow-hidden whitespace-nowrap group
                 ${location.pathname === '/staff' 
-                  ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 shadow-sm' 
-                  : 'text-text-muted hover:bg-bg-color hover:text-text-main'}
+                  ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shadow-sm' 
+                  : 'text-text-muted hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'}
               `}
             >
-              <div className="w-6 flex justify-center shrink-0">
+              <div className="w-6 flex justify-center shrink-0 text-emerald-500 group-hover:scale-110 transition-transform">
                 <LayoutDashboard size={isSidebarCollapsed ? 24 : 20} className="transition-all duration-300" />
               </div>
               <span className={`
@@ -330,17 +371,18 @@ export default function Layout({ user, onLogout }) {
             </Link>
             
             {user?.role === 'ADMIN' && (
+              <>
               <Link 
                 to="/admin" 
                 title={isSidebarCollapsed ? "Admin Dashboard" : ""}
                 className={`
-                  flex items-center gap-4 py-3 px-4 rounded-xl no-underline font-semibold transition-all duration-300 overflow-hidden whitespace-nowrap
+                  flex items-center gap-4 py-3 px-4 rounded-xl no-underline font-semibold transition-all duration-300 overflow-hidden whitespace-nowrap group
                   ${location.pathname === '/admin' 
-                    ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 shadow-sm' 
-                    : 'text-text-muted hover:bg-bg-color hover:text-text-main'}
+                    ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 shadow-sm' 
+                    : 'text-text-muted hover:bg-amber-50/50 dark:hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400'}
                 `}
               >
-                <div className="w-6 flex justify-center shrink-0">
+                <div className="w-6 flex justify-center shrink-0 text-amber-500 group-hover:scale-110 transition-transform">
                   <Shield size={isSidebarCollapsed ? 24 : 20} className="transition-all duration-300" />
                 </div>
                 <span className={`
@@ -350,6 +392,43 @@ export default function Layout({ user, onLogout }) {
                   Admin Dashboard
                 </span>
               </Link>
+              
+              {/* Admin Sub-navigation (Playful Accordion) */}
+              <div 
+                className={`grid transition-all duration-300 ease-out ${location.pathname === '/admin' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+              >
+                <div className="overflow-hidden">
+                  <div className={`flex flex-col gap-2 mt-2 mb-3 transition-all ${isSidebarCollapsed ? 'items-center' : 'ml-10 border-l-2 border-amber-200 dark:border-amber-900/50 pl-3'}`}>
+                    {ADMIN_TABS.map((tab, index) => {
+                      const searchParams = new URLSearchParams(location.search);
+                      const currentTab = searchParams.get('tab') || 'overview';
+                      const isActive = currentTab === tab.id;
+                      const isOpened = location.pathname === '/admin';
+                      return (
+                        <Link
+                          key={tab.id}
+                          to={`/admin?tab=${tab.id}`}
+                          title={isSidebarCollapsed ? tab.label : ""}
+                          style={{ transitionDelay: isOpened ? `${index * 60}ms` : '0ms' }}
+                          className={`flex items-center gap-3 rounded-xl text-xs font-bold no-underline transition-all duration-300 ease-out
+                            ${isActive ? 'text-amber-600 bg-amber-50 dark:bg-amber-500/20 shadow-sm' : 'text-text-muted hover:text-amber-600 hover:bg-amber-50/50 dark:hover:bg-amber-500/10'} 
+                            ${isSidebarCollapsed ? 'justify-center w-10 h-10 p-0' : 'py-2.5 px-3'}
+                            ${isOpened ? 'translate-x-0 opacity-100 scale-100' : '-translate-x-8 opacity-0 scale-75'}
+                          `}
+                        >
+                          <div className={`shrink-0 flex items-center justify-center transition-transform duration-300 ease-out ${isActive ? 'scale-110' : 'scale-100'}`}>
+                            {tab.icon}
+                          </div>
+                          <span className={`transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isSidebarCollapsed ? 'opacity-0 max-w-0 hidden' : 'opacity-100 max-w-[200px]'}`}>
+                            {tab.label}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              </>
             )}
           </nav>
         </div>
@@ -419,13 +498,62 @@ export default function Layout({ user, onLogout }) {
           {/* Right Actions */}
           <div className="flex items-center justify-end gap-3 sm:gap-5 min-w-[200px]">
             {user?.role === 'ADMIN' && (
-              <div className="flex items-center gap-2 pr-4 sm:pr-5 border-r border-border">
+              <div className="flex items-center gap-1 sm:gap-2 pr-4 sm:pr-5 border-r border-border">
+                <button 
+                  onClick={() => {
+                  if (window.doPrintReport) {
+                    window.doPrintReport();
+                  } else {
+                    const today = new Date();
+                    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    const pad = n => n.toString().padStart(2, '0');
+                    const sStr = `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
+                    const eStr = `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`;
+                    window.open(`/print-stats?startDate=${sStr}&endDate=${eStr}&year=${today.getFullYear()}`, '_blank');
+                  }
+                }}
+                  title="Print Report"
+                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                >
+                  <FileText size={20} />
+                </button>
+                <button 
+                  onClick={() => setIsPrintModalOpen(true)}
+                  title="Print Tickets"
+                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                >
+                  <Printer size={20} />
+                </button>
                 <button 
                   onClick={handleDetectScreens}
                   title="Project TV Display"
-                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50"
+                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
                 >
                   <Monitor size={20} />
+                </button>
+                <button 
+                  onClick={() => {
+                  api.autoBalanceCounters().then(res => {
+                    if (res.changes && res.changes.length > 0) {
+                      const details = res.changes.map(c => '- ' + c).join('\n');
+                      setPopupMessage({ title: 'Auto-Balance Report', message: res.message + '\n\n' + details, type: 'success' });
+                    } else {
+                      setPopupMessage({ title: 'Success', message: res.message, type: 'success' });
+                    }
+                  }).catch(() => setPopupMessage({ title: 'Error', message: 'Failed to auto-balance counters.', type: 'error' }));
+                }}
+                  title="Auto-Balance Counters"
+                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                >
+                  <RefreshCw size={20} />
+                </button>
+                <button 
+                  onClick={() => setShowSettingsModal(true)}
+                  title="Settings"
+                  className="flex items-center justify-center p-2.5 text-text-muted rounded-xl transition-all bg-transparent border-none cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                >
+                  <Settings size={20} />
                 </button>
               </div>
             )}
@@ -443,8 +571,10 @@ export default function Layout({ user, onLogout }) {
               >
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="font-bold text-sm text-text-main leading-tight">{user?.name}</span>
-                  <span className="text-[0.7rem] font-medium text-text-muted mt-0.5">
+                  <span className="text-[0.7rem] font-medium text-text-muted mt-0.5 flex justify-end items-center gap-1.5">
                     {user?.counter?.name ? user.counter.name : 'No Window'}
+                    {user?.counter?.name && <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>}
+                    <span className="font-bold tracking-tight">{renderCateredTags()}</span>
                   </span>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white flex items-center justify-center overflow-hidden shadow-sm">
@@ -466,14 +596,6 @@ export default function Layout({ user, onLogout }) {
                     <div className="text-xs text-indigo-600 font-extrabold mt-1 tracking-wider">{user?.role}</div>
                   </div>
                   
-                  <button 
-                    onClick={() => { setIsProfileOpen(false); setShowSettingsModal(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 bg-transparent border-none text-left cursor-pointer text-text-main rounded-xl text-sm font-semibold hover:bg-bg-color transition-colors"
-                  >
-                    <Settings size={18} className="text-text-muted" />
-                    Settings
-                  </button>
-                  <div className="h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
                   <button 
                     onClick={() => { setIsProfileOpen(false); onLogout(); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 bg-transparent border-none text-left cursor-pointer text-danger rounded-xl text-sm font-bold hover:bg-red-50 transition-colors"
@@ -579,7 +701,43 @@ export default function Layout({ user, onLogout }) {
         </div>
       </ModalWrapper>
 
-            <SettingsModal 
+            {user?.role === 'ADMIN' && <PrintTicketsModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        config={printConfig}
+        onConfigChange={setPrintConfig}
+        onGenerate={async () => {
+          setIsPrintModalOpen(false);
+          window.open(`/print-tickets?type=${printConfig.type}&start=${printConfig.startNumber}&qty=${printConfig.quantity}&format=${printConfig.format || 'A4'}`, '_blank');
+          
+          try {
+            const servicesRes = await api.getServices();
+            const services = servicesRes || [];
+            const service = services.find(s => s.prefix === printConfig.type);
+            
+            if (service) {
+              const tickets = [];
+              const d = new Date();
+              const dateStr = String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + String(d.getFullYear()).slice(-2);
+              
+              for (let i = 0; i < printConfig.quantity; i++) {
+                const num = String(Number(printConfig.startNumber) + i).padStart(3, '0');
+                tickets.push({
+                  number: `${printConfig.type}${dateStr}${num}`,
+                  type: 'REGULAR',
+                  status: 'WAITING',
+                  serviceId: service.id
+                });
+              }
+              await api.bulkGenerateTickets(tickets);
+            }
+          } catch (err) {
+            console.error('Failed to sync bulk tickets to DB', err);
+          }
+        }}
+      />}
+      <GlobalPopup popupMessage={popupMessage} onClose={() => setPopupMessage(null)} />
+      <SettingsModal 
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         user={user}
@@ -594,6 +752,16 @@ export default function Layout({ user, onLogout }) {
         <div className="bg-surface p-8 rounded-3xl w-[400px] shadow-float border border-white/20 animate-slide-up">
           <h3 className="m-0 mb-6 text-xl font-extrabold text-text-main">Change Password</h3>
           <div className="flex flex-col gap-5">
+            {passwordFeedback.message && (
+              <div className={`p-3 rounded-xl border flex items-center gap-3 text-sm font-bold animate-slide-up ${
+                passwordFeedback.type === 'error' 
+                  ? 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/20 dark:border-rose-800 dark:text-rose-400' 
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400'
+              }`}>
+                {passwordFeedback.type === 'error' ? <AlertTriangle size={18} /> : <Check size={18} />}
+                {passwordFeedback.message}
+              </div>
+            )}
             <div>
               <label className="block mb-1 font-bold text-sm text-text-main uppercase tracking-wider">Current Password</label>
               <input type="password" value={passwordChange.currentPassword} onChange={e => setPasswordChange({...passwordChange, currentPassword: e.target.value})} className="w-full p-3 rounded-xl border border-border bg-surface text-text-main outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all" />
@@ -607,17 +775,24 @@ export default function Layout({ user, onLogout }) {
               <input type="password" value={passwordChange.confirmPassword} onChange={e => setPasswordChange({...passwordChange, confirmPassword: e.target.value})} className="w-full p-3 rounded-xl border border-border bg-surface text-text-main outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all" />
             </div>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setShowChangePasswordModal(false)} className="flex-1 p-3 bg-slate-100 dark:bg-slate-800 text-text-muted font-bold border-none rounded-xl cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+              <button onClick={() => { setShowChangePasswordModal(false); setShowSettingsModal(true); setPasswordFeedback({type: '', message: ''}); }} className="flex-1 p-3 bg-slate-100 dark:bg-slate-800 text-text-muted font-bold border-none rounded-xl cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
               <button 
                 onClick={async () => {
-                  if (passwordChange.newPassword !== passwordChange.confirmPassword) return alert("Passwords don't match");
+                  setPasswordFeedback({ type: '', message: '' });
+                  if (passwordChange.newPassword !== passwordChange.confirmPassword) {
+                    return setPasswordFeedback({ type: 'error', message: "Passwords don't match" });
+                  }
                   try {
                     await api.changePassword(user.id, { currentPassword: passwordChange.currentPassword, newPassword: passwordChange.newPassword });
-                    setShowChangePasswordModal(false);
-                    setPasswordChange({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                    alert("Password changed successfully");
+                    setPasswordFeedback({ type: 'success', message: "Password changed successfully" });
+                    setTimeout(() => {
+                      setShowChangePasswordModal(false);
+                      setPasswordChange({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      setShowSettingsModal(true);
+                      setPasswordFeedback({ type: '', message: '' });
+                    }, 1500);
                   } catch (err) {
-                    alert(err.message || "Failed to change password");
+                    setPasswordFeedback({ type: 'error', message: err.message || "Failed to change password" });
                   }
                 }}
                 className="flex-1 p-3 bg-indigo-600 text-white font-bold border-none rounded-xl cursor-pointer hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/20"
@@ -673,7 +848,7 @@ export default function Layout({ user, onLogout }) {
             />
             <div className="flex gap-3 mt-auto">
               <button 
-                onClick={() => setShowResetConfirmModal(false)}
+                onClick={() => { setShowResetConfirmModal(false); setShowSettingsModal(true); }}
                 className="flex-1 p-3 bg-slate-100 dark:bg-slate-800 text-text-muted font-bold border-none rounded-xl cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 Cancel
@@ -726,3 +901,21 @@ export default function Layout({ user, onLogout }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -41,6 +41,18 @@ export default function PrintTicketsModal({ isOpen, onClose, config, onConfigCha
           </div>
         </div>
 
+        <div className="mb-8">
+          <label className="block mb-2 font-bold text-xs text-text-muted uppercase tracking-wider">Paper Format</label>
+          <select
+            value={config.format || 'A4'}
+            onChange={e => setField('format', e.target.value)}
+            className="w-full p-4 rounded-xl border border-border text-base bg-surface text-text-main focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-bold shadow-sm"
+          >
+            <option value="A4">A4 Sheet (20 per page grid)</option>
+            <option value="thermal">Thermal POS (80mm single column)</option>
+          </select>
+        </div>
+
         <button
           onClick={onGenerate}
           className="w-full p-4 bg-indigo-600 text-white border-none rounded-xl cursor-pointer font-bold text-lg hover:bg-indigo-700 hover:-translate-y-1 transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"

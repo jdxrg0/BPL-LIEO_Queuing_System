@@ -51,13 +51,21 @@ const getStats = async (req, res) => {
     trendStart.setHours(0, 0, 0, 0);
     trendEnd.setHours(23, 59, 59, 999);
 
-    // Fetching only minimal fields to prevent memory leaks over large datasets
+    // Fetching minimal fields but including times and counter for new metrics
     const trendTickets = await prisma.ticket.findMany({
       where: {
         status: 'COMPLETED',
         completedAt: { gte: trendStart, lte: trendEnd }
       },
-      select: { completedAt: true, serviceId: true, skipCount: true, priorityType: true }
+      select: { 
+        createdAt: true,
+        servedAt: true,
+        completedAt: true, 
+        serviceId: true, 
+        skipCount: true, 
+        priorityType: true,
+        counter: { select: { name: true } }
+      }
     });
 
     const dateBuckets = {};
@@ -67,7 +75,7 @@ const getStats = async (req, res) => {
     while (current <= trendEnd && loopCount < 366) {
       const monthStr = current.toLocaleString('default', { month: 'short' });
       const dateStr = `${monthStr} ${current.getDate()}`;
-      dateBuckets[dateStr] = { total: 0, newApp: 0, renewal: 0, retirement: 0 };
+      dateBuckets[dateStr] = { total: 0, newApp: 0, renewal: 0, retirement: 0, waitTimeMs: 0, waitCount: 0, serviceTimeMs: 0, serviceCount: 0, dropOffs: 0 };
       
       current.setDate(current.getDate() + 1);
       loopCount++;
@@ -84,6 +92,48 @@ const getStats = async (req, res) => {
         if (slot === 0) dateBuckets[dateStr].newApp++;
         if (slot === 1) dateBuckets[dateStr].renewal++;
         if (slot === 2) dateBuckets[dateStr].retirement++;
+
+        if (t.createdAt && t.servedAt) {
+          const waitMs = new Date(t.servedAt) - new Date(t.createdAt);
+          if (waitMs >= 0) {
+            dateBuckets[dateStr].waitTimeMs += waitMs;
+            dateBuckets[dateStr].waitCount++;
+          }
+        }
+        
+        if (t.servedAt && t.completedAt) {
+          const serviceMs = new Date(t.completedAt) - new Date(t.servedAt);
+          if (serviceMs >= 0 && serviceMs <= 14400000) { // Ignore > 4hr anomalies
+            dateBuckets[dateStr].serviceTimeMs += serviceMs;
+            dateBuckets[dateStr].serviceCount++;
+          }
+        }
+      }
+    });
+
+        const noShowTickets = await prisma.ticket.findMany({
+      where: { status: 'NO_SHOW', servedAt: { gte: trendStart, lte: trendEnd } },
+      select: { servedAt: true }
+    });
+    
+    const postponedTickets = await prisma.ticket.findMany({
+      where: { status: 'POSTPONED', createdAt: { gte: trendStart, lte: trendEnd } },
+      select: { createdAt: true }
+    });
+
+    noShowTickets.forEach(t => {
+      if (t.servedAt) {
+        const d = new Date(t.servedAt);
+        const dateStr = `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+        if (dateBuckets[dateStr]) dateBuckets[dateStr].dropOffs++;
+      }
+    });
+
+    postponedTickets.forEach(t => {
+      if (t.createdAt) {
+        const d = new Date(t.createdAt);
+        const dateStr = `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+        if (dateBuckets[dateStr]) dateBuckets[dateStr].dropOffs++;
       }
     });
 
@@ -93,13 +143,16 @@ const getStats = async (req, res) => {
         tickets: counts.total,
         newApp: counts.newApp,
         renewal: counts.renewal,
-        retirement: counts.retirement
+        retirement: counts.retirement,
+        avgWaitMins: counts.waitCount > 0 ? Math.round(counts.waitTimeMs / counts.waitCount / 60000) : 0,
+        avgServiceMins: counts.serviceCount > 0 ? Math.round(counts.serviceTimeMs / counts.serviceCount / 60000) : 0,
+        dropOffs: counts.dropOffs
       });
     }
 
     // Employee Stats - Fixed N+1 Problem
     const users = await prisma.user.findMany({
-      select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true }
+      select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true, isOnline: true }
     });
 
     const employeeGroup = await prisma.ticket.groupBy({
@@ -156,17 +209,52 @@ const getStats = async (req, res) => {
     let totalSkip = 0;
     const priorityCounts = {};
     const hourCounts = new Array(24).fill(0);
+    const dayCounts = new Array(7).fill(0);
+    const counterCounts = {};
+    
+    let totalWaitTimeMs = 0;
+    let waitTimeCount = 0;
+    let totalServiceTimeMs = 0;
+    let serviceTimeCount = 0;
+    let slaMetCount = 0;
 
     trendTickets.forEach(t => {
       totalSkip += t.skipCount || 0;
       const p = t.priorityType || 'REGULAR';
       priorityCounts[p] = (priorityCounts[p] || 0) + 1;
+      
       if (t.completedAt) {
-        hourCounts[new Date(t.completedAt).getHours()]++;
+        const d = new Date(t.completedAt);
+        hourCounts[d.getHours()]++;
+        dayCounts[d.getDay()]++;
+      }
+      
+      if (t.createdAt && t.servedAt) {
+        const waitMs = new Date(t.servedAt) - new Date(t.createdAt);
+        if (waitMs >= 0) {
+          totalWaitTimeMs += waitMs;
+          waitTimeCount++;
+          if (waitMs <= 15 * 60000) slaMetCount++;
+        }
+      }
+      
+      if (t.servedAt && t.completedAt) {
+        const serviceMs = new Date(t.completedAt) - new Date(t.servedAt);
+        if (serviceMs >= 0 && serviceMs <= 14400000) { // Ignore > 4hr anomalies
+          totalServiceTimeMs += serviceMs;
+          serviceTimeCount++;
+        }
+      }
+      
+      if (t.counter && t.counter.name) {
+        counterCounts[t.counter.name] = (counterCounts[t.counter.name] || 0) + 1;
       }
     });
 
     const avgSkipCount = trendTickets.length ? Math.round((totalSkip / trendTickets.length) * 10) / 10 : 0;
+    const avgWaitTimeMins = waitTimeCount > 0 ? Math.round(totalWaitTimeMs / waitTimeCount / 60000) : 0;
+    const avgServiceTimeMins = serviceTimeCount > 0 ? Math.round(totalServiceTimeMs / serviceTimeCount / 60000) : 0;
+
     const priorityBreakdown = Object.entries(priorityCounts)
       .map(([type, count]) => ({ type, label: priorityLabelMap[type] || type, count }))
       .sort((a, b) => b.count - a.count);
@@ -176,6 +264,18 @@ const getStats = async (req, res) => {
       label: `${String(hour).padStart(2, '0')}:00`,
       count
     }));
+    
+    const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const busiestDays = dayCounts.map((count, index) => ({
+      day: dayLabels[index],
+      count
+    }));
+    
+    const slaAdherence = waitTimeCount > 0 ? Math.round((slaMetCount / waitTimeCount) * 100) : 100;
+
+    const counterUtilization = Object.entries(counterCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
 
     // Year-over-Year: same date range shifted back one year
     const prevYearStart = new Date(trendStart);
@@ -196,16 +296,19 @@ const getStats = async (req, res) => {
       noShow: noShowCount,
       postponed: postponedCount,
       avgSkipCount,
+      avgWaitTimeMins,
+      avgServiceTimeMins,
       priorityBreakdown,
       busiestHours,
+      busiestDays,
+      counterUtilization,
+      slaAdherence,
       yoy: { current: currentCount, previous: prevYearCount, pctChange }
     };
 
     // Sparkline data for KPI cards - daily counts over a rolling window ending at trendEnd
-    const SPARK_DAYS = 90;
     const sparkEnd = new Date(trendEnd);
-    const sparkStart = new Date(sparkEnd);
-    sparkStart.setDate(sparkStart.getDate() - (SPARK_DAYS - 1));
+    const sparkStart = new Date(trendStart);
     sparkStart.setHours(0, 0, 0, 0);
 
     const sparkTickets = await prisma.ticket.findMany({
@@ -324,3 +427,44 @@ module.exports = {
   getStats,
   getHistory
 };
+
+
+
+const getLiveFlow = async (req, res) => {
+  try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const issuedCount = await prisma.ticket.count({
+      where: { createdAt: { gte: oneHourAgo } }
+    });
+    const servedCount = await prisma.ticket.count({
+      where: {
+        status: { in: ['COMPLETED', 'SERVING'] },
+        servedAt: { gte: oneHourAgo }
+      }
+    });
+    const recentCompleted = await prisma.ticket.findMany({
+      where: {
+        status: 'COMPLETED',
+        completedAt: { gte: oneHourAgo },
+        servedAt: { not: null }
+      },
+      select: { servedAt: true, completedAt: true }
+    });
+    let avgServiceMins = 0;
+    const validCompleted = recentCompleted.filter(t => (new Date(t.completedAt) - new Date(t.servedAt)) <= 14400000);
+    
+    if (validCompleted.length > 0) {
+      const totalServiceMs = validCompleted.reduce((acc, t) => acc + (new Date(t.completedAt) - new Date(t.servedAt)), 0);
+      avgServiceMins = Math.round(totalServiceMs / validCompleted.length / 60000);
+    }
+    res.json({
+      issuedLastHour: issuedCount,
+      servedLastHour: servedCount,
+      avgServiceMinsLastHour: avgServiceMins
+    });
+  } catch (error) {
+    console.error("Live flow error:", error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+module.exports.getLiveFlow = getLiveFlow;

@@ -58,12 +58,12 @@ const getSettings = async (req, res) => {
 const { syncSettings } = require('../services/cloudSync.service');
 
 const updateSettings = async (req, res) => {
-  const { websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit } = req.body;
+  const { websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit, ticketHeaderText, ticketFooterText } = req.body;
   try {
     const settings = await prisma.settings.upsert({
       where: { id: 1 },
-      update: { websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit },
-      create: { id: 1, websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit }
+      update: { websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit, ticketHeaderText, ticketFooterText },
+      create: { id: 1, websiteName, logoBase64, autoAdaptive, autoBalanceThreshold, slaThreshold, zipperRatio, agingRate, skipLimit, ticketHeaderText, ticketFooterText }
     });
     socketConfig.getIo().emit('settingsUpdated', settings);
 
@@ -82,7 +82,7 @@ const performAutoBalance = async () => {
     const threshold = settings?.autoBalanceThreshold || 15;
     const slaThreshold = settings?.slaThreshold || threshold;
     
-    const activeUsers = await prisma.user.findMany({ where: { counterId: { not: null } } });
+    const activeUsers = await prisma.user.findMany({ where: { counterId: { not: null }, isOnline: true } });
     if (activeUsers.length === 0) {
       return { success: true, message: 'No active users to balance.' };
     }
@@ -122,22 +122,11 @@ const performAutoBalance = async () => {
       weightedByService[key] = (weightedByService[key] || 0) + (w !== undefined ? 1 + w : 1);
     }
 
-    const recentAvgMins = await prisma.$queryRaw`
-      SELECT "serviceId" AS "serviceId",
-             MAX(1, CAST(ROUND(AVG((CAST("completedAt" AS REAL) - CAST("servedAt" AS REAL)) / 60000.0)) AS INTEGER)) AS "avgMins"
-      FROM (
-        SELECT "serviceId", "servedAt", "completedAt",
-               ROW_NUMBER() OVER (PARTITION BY "serviceId" ORDER BY "completedAt" DESC) AS "rn"
-        FROM "Ticket"
-        WHERE "status" = 'COMPLETED' AND "servedAt" IS NOT NULL AND "completedAt" IS NOT NULL
-      )
-      WHERE "rn" <= 10
-      GROUP BY "serviceId"
-    `;
     const avgMinsByService = {};
-    recentAvgMins.forEach(row => {
-      avgMinsByService[row.serviceId] = Number(row.avgMins);
-    });
+    for (const service of services) {
+      const { activeUserIds } = await getActiveStaffProfiles(service.prefix);
+      avgMinsByService[service.id] = await getDynamicAverageServiceTime(service.id, activeUserIds);
+    }
 
     for (const service of services) {
       const avgTimeMins = avgMinsByService[service.id] || 5;
@@ -178,6 +167,8 @@ const performAutoBalance = async () => {
       }
     }
 
+    let changes = [];
+
     if (maxLoad >= 0 && maxPrefix) {
       // Hysteresis (deadband) to prevent peace/crunch flapping on consecutive runs:
       // enter crunch only once load clears threshold * 1.5, and exit only after it
@@ -197,6 +188,7 @@ const performAutoBalance = async () => {
             data: { caterNew: true, caterRenewal: true, caterRetirement: true },
             include: { counter: true }
           });
+          changes.push(`Reset **${user.name}** to cater all services (Peace Mode).`);
           socketConfig.getIo().emit('userUpdated', updatedUser);
         }
         socketConfig.getIo().emit('queueUpdated');
@@ -283,6 +275,11 @@ const performAutoBalance = async () => {
             },
             include: { counter: true }
           });
+          let catering = [];
+          if (assignment.caterNew) catering.push('New');
+          if (assignment.caterRenewal) catering.push('Renewal');
+          if (assignment.caterRetirement) catering.push('Retirement');
+          changes.push(`Assigned **${currentUser.name}** to cater: ${catering.join(', ')}`);
           socketConfig.getIo().emit('userUpdated', updatedUser);
         }
         
@@ -291,7 +288,10 @@ const performAutoBalance = async () => {
       }
     }
     
-    return { success: true, message: 'Counters auto-balanced successfully based on current load.' };
+    if (changes.length === 0) {
+  changes.push('No reassignments were needed. All counters are currently optimally assigned for the current traffic load.');
+}
+return { success: true, message: 'Counters auto-balanced successfully based on current load.', changes };
 };
 
 // Single-flight mutex: admin clicks, the 5-minute interval, and the debounced
@@ -395,6 +395,11 @@ const resetAllData = async (req, res) => {
     // Delete all tickets in Firebase to prevent accumulation
     await clearCloudDatabase();
     
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    if (settings?.autoAdaptive) {
+      scheduleAutoBalance();
+    }
+
     // Notify all clients to fetch fresh data
     socketConfig.getIo().emit('queueUpdated');
     

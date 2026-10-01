@@ -1,0 +1,37 @@
+
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: bplo-backend
+    ports:
+      # Maps port 5000 on your machine to port 5000 in the container
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      # CRITICAL: This ensures your SQLite database is saved on your actual computer
+      # so data is never lost when the container restarts or updates.
+      - ./prisma:/app/prisma
+      
+      # CRITICAL: This allows your dbBackup.js cron job to write the backup files
+      # directly to your Windows machine's folder, not trapped inside the container.
+      - ./backups:/app/backups
+    restart: unless-stopped
+    # 'unless-stopped' means Docker acts like PM2: if it crashes or you reboot, it starts back up automatically.
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: bplo-frontend
+    ports:
+      # Maps port 3000 on your machine to port 3000 in the container
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: unless-stopped

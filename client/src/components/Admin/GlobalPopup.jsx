@@ -1,4 +1,5 @@
 import React from 'react';
+import { XCircle, CheckCircle2 } from 'lucide-react';
 import ModalWrapper from '../Modals/ModalWrapper';
 
 export default function GlobalPopup({ popupMessage, onClose }) {
@@ -7,18 +8,18 @@ export default function GlobalPopup({ popupMessage, onClose }) {
       {() => {
         const isError = popupMessage.type === 'error';
         return (
-          <div className="card w-[400px] bg-surface border border-border rounded-xl shadow-xl flex flex-col overflow-hidden animate-slide-up text-center p-8">
+          <div className="card w-full max-w-[450px] bg-surface border border-border rounded-xl shadow-xl flex flex-col overflow-hidden animate-slide-up text-center p-8 mx-4">
             <div className={`mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center border-4 ${isError ? 'bg-red-50 border-red-100 text-red-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
               {isError ? (
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <XCircle size={32} />
               ) : (
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path></svg>
+                <CheckCircle2 size={32} />
               )}
             </div>
             <h3 className={`m-0 mb-2 text-2xl font-extrabold tracking-tight ${isError ? 'text-red-600' : 'text-emerald-600'}`}>
               {popupMessage.title}
             </h3>
-            <p className="m-0 mb-6 text-text-main text-sm font-medium">
+            <p className={`m-0 mb-6 text-text-main text-sm font-medium whitespace-pre-wrap ${popupMessage.message?.includes('\n') ? 'text-left bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-border' : ''}`}>
               {popupMessage.message}
             </p>
             <button

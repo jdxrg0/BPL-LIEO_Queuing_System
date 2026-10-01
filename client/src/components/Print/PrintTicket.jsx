@@ -1,23 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { api } from '../../api';
 
-export default function PrintTicket({ ticketNumber, serviceType = 'NW', settings: propSettings }) {
-  const [searchParams] = useSearchParams();
-  const [settings, setSettings] = useState(propSettings || null);
-  const paramTicket = searchParams.get('ticket') || searchParams.get('number');
-  const activeTicketNumber = ticketNumber || paramTicket || 'NW-000000-001';
-  const activeServiceType = serviceType || searchParams.get('type') || 'NW';
-
-  useEffect(() => {
-    if (!settings) {
-      api.getSettings().then(setSettings).catch(() => {
-        setSettings({ websiteName: 'BPLO System', logoBase64: '' });
-      });
-    }
-  }, [settings]);
-
+export default function PrintTicket({ 
+  ticketNumber = 'NW-000000-001', 
+  serviceType = 'NW', 
+  settings = { websiteName: 'BPLO System', logoBase64: '' }
+}) {
   const getServiceLabel = (t) => {
     switch(t) {
       case 'NW': return 'New Business';
@@ -27,7 +15,7 @@ export default function PrintTicket({ ticketNumber, serviceType = 'NW', settings
     }
   };
 
-  const trackerUrl = `${window.location.origin}/tracker?ticket=${activeTicketNumber}`;
+  const trackerUrl = `${window.location.origin}/tracker?ticket=${ticketNumber}`;
 
   return (
     <div style={{ 
@@ -52,11 +40,11 @@ export default function PrintTicket({ ticketNumber, serviceType = 'NW', settings
       </div>
       
       <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: 1 }}>
-        {activeTicketNumber}
+        {ticketNumber}
       </div>
       
       <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#334155', marginTop: '0.2rem', marginBottom: '0.35rem' }}>
-        {getServiceLabel(activeServiceType)}
+        {getServiceLabel(serviceType)}
       </div>
 
       <QRCodeSVG 
@@ -65,11 +53,11 @@ export default function PrintTicket({ ticketNumber, serviceType = 'NW', settings
       />
 
       <div style={{ fontSize: '0.55rem', color: '#64748b', marginTop: '0.2rem', fontWeight: 500 }}>
-        Scan to track your ticket
+        {settings?.ticketHeaderText || "Scan to track your ticket"}
       </div>
       
       <div style={{ fontSize: '0.5rem', color: '#64748b', marginTop: '0.35rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.2rem', width: '90%' }}>
-        Please wait for your number.
+        {settings?.ticketFooterText || "Please wait for your number."}
       </div>
     </div>
   );

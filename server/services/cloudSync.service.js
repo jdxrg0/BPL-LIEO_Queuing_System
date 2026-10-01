@@ -22,6 +22,8 @@ try {
 
 const syncDebounceMap = new Map();
 
+const syncQueueDebounceMap = new Map();
+
 /**
  * Synchronize a ticket to the cloud (Firestore).
  * Called when a ticket is created or its status updates to WAITING or SERVING.
@@ -74,6 +76,17 @@ const syncTicket = async (ticket) => {
   }, 500);
 
   syncDebounceMap.set(ticketId, timeoutId);
+
+  // --- TRIGGER QUEUE STATE SYNC (DEBOUNCED PER SERVICE) ---
+  const serviceId = ticket.serviceId;
+  if (syncQueueDebounceMap.has(serviceId)) {
+    clearTimeout(syncQueueDebounceMap.get(serviceId));
+  }
+  const qTimeout = setTimeout(async () => {
+    syncQueueDebounceMap.delete(serviceId);
+    await syncQueueState(serviceId);
+  }, 1000); // 1s debounce allows multiple ticket updates to batch into 1 queue calculation
+  syncQueueDebounceMap.set(serviceId, qTimeout);
 };
 
 /**
@@ -197,11 +210,68 @@ const syncSettings = async (settings) => {
   }
 };
 
+async function syncQueueState(serviceId, prismaInstance = prisma) {
+  if (!db) return;
+  try {
+    
+    const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../utils/capacityTracker');
+    const { calculateSmartScores: smartCalc } = require('../utils/smartQueueEngine');
+
+    const waitingTickets = await prismaInstance.ticket.findMany({
+      where: { serviceId, status: 'WAITING' },
+      include: { service: true }
+    });
+    
+    if (waitingTickets.length === 0) {
+      await db.collection('live_tickets').doc(`queue_state_${serviceId}`).set({ map: {}, updatedAt: FieldValue.serverTimestamp() });
+      return;
+    }
+
+    const priorityGroups = await prismaInstance.priorityGroup.findMany();
+    const settings = await prismaInstance.settings.findUnique({ where: { id: 1 } }) || { autoBalanceThreshold: 15, zipperRatio: 3, skipLimit: 5 };
+    const recentTickets = await prismaInstance.ticket.findMany({
+      where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
+      orderBy: { servedAt: 'desc' },
+      take: 100
+    });
+
+    const scoredWaiting = smartCalc(waitingTickets, priorityGroups, settings, recentTickets);
+    
+    const { activeCount, activeUserIds } = await getActiveStaffProfiles(waitingTickets[0].service.prefix);
+    const avgServiceTimeMins = await getDynamicAverageServiceTime(serviceId, activeUserIds);
+    
+    const queueMap = {};
+    scoredWaiting.forEach((t, idx) => {
+      const trueRank = idx + 1;
+      let abandonmentDiscount = 0;
+      if (trueRank > 10) {
+        const tiers = Math.floor((trueRank - 1) / 10);
+        abandonmentDiscount = Math.min(0.30, tiers * 0.05);
+      }
+      const effectiveRank = trueRank * (1 - abandonmentDiscount);
+      const estimatedWaitMins = activeCount > 0 ? Math.max(1, Math.round((effectiveRank / activeCount) * avgServiceTimeMins)) : null;
+      
+      queueMap[t.id.toString()] = { 
+        rank: trueRank, 
+        waitMins: estimatedWaitMins 
+      };
+    });
+
+    await db.collection('live_tickets').doc(`queue_state_${serviceId}`).set({
+      map: queueMap,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.warn(`Cloud Sync Error: Failed to sync queue state for service ${serviceId}`, error.message);
+  }
+};
+
 module.exports = {
   syncTicket,
   removeTicket,
   catchUpSync,
   clearCloudDatabase,
   syncSettings,
+  syncQueueState,
   getDb: () => db
 };

@@ -13,21 +13,26 @@ jest.setTimeout(30000);
 describe('BPL-LIEO Queuing System API Integration Tests', () => {
   let adminToken, staffToken, receptionistToken;
   let adminUser, staffUser, receptionistUser;
-  
+  let testService;
+
   beforeAll(async () => {
+    await prisma.queueAudit.deleteMany();
     await prisma.ticket.deleteMany();
     await prisma.ticketCounter.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.service.deleteMany();
-
-    await prisma.service.create({
-      data: {
-        id: 1,
-        name: 'New Application',
-        prefix: 'NW',
-        description: 'New Application'
-      }
+    await prisma.user.deleteMany({
+      where: { username: { startsWith: 'testuser_' } }
     });
+
+    testService = await prisma.service.findFirst();
+    if (!testService) {
+      testService = await prisma.service.create({
+        data: {
+          name: 'New Application',
+          prefix: 'NW',
+          description: 'New Application'
+        }
+      });
+    }
 
     const admin = await createTestUser('ADMIN');
     adminToken = admin.token;
@@ -43,10 +48,12 @@ describe('BPL-LIEO Queuing System API Integration Tests', () => {
   });
 
   afterAll(async () => {
+    await prisma.queueAudit.deleteMany();
     await prisma.ticket.deleteMany();
     await prisma.ticketCounter.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.service.deleteMany();
+    await prisma.user.deleteMany({
+      where: { username: { startsWith: 'testuser_' } }
+    });
     if (io) {
       await new Promise((resolve) => io.close(resolve));
     }
@@ -112,7 +119,7 @@ describe('BPL-LIEO Queuing System API Integration Tests', () => {
         .post('/api/tickets')
         .set('Authorization', 'Bearer ' + receptionistToken)
         .send({
-          serviceId: 1,
+          serviceId: testService.id,
           priorityType: 'REGULAR'
         });
       
@@ -186,7 +193,7 @@ describe('BPL-LIEO Queuing System API Integration Tests', () => {
         .post('/api/tickets')
         .set('Authorization', 'Bearer ' + staffToken)
         .send({
-          serviceId: 1
+          serviceId: testService.id
         });
       
       if (res.status !== 403) {

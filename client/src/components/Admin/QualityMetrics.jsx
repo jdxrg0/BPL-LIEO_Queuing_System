@@ -1,13 +1,13 @@
 import React from 'react';
-import { UserX, RefreshCw, TrendingUp } from 'lucide-react';
+import { UserX, RefreshCw, TrendingUp, Target } from 'lucide-react';
 
 export default function QualityMetrics({ advanced, year }) {
-  const yoy = advanced.yoy;
+  const yoy = advanced?.yoy || { pctChange: 0, current: 0, previous: 0 };
   const metrics = [
     {
       label: 'No-Show',
       caption: 'Tickets that never got served',
-      value: advanced.noShow,
+      value: advanced?.noShow || 0,
       color: 'text-rose-600 dark:text-rose-400',
       soft: 'bg-rose-50 dark:bg-rose-500/10',
       deco: 'bg-rose-50 dark:bg-rose-500/10',
@@ -16,7 +16,7 @@ export default function QualityMetrics({ advanced, year }) {
     {
       label: 'Postponed',
       caption: 'Deferred to a later time',
-      value: advanced.postponed,
+      value: advanced?.postponed || 0,
       color: 'text-amber-500 dark:text-amber-400',
       soft: 'bg-amber-50 dark:bg-amber-500/10',
       deco: 'bg-amber-50 dark:bg-amber-500/10',
@@ -25,16 +25,25 @@ export default function QualityMetrics({ advanced, year }) {
     {
       label: 'Avg Skips',
       caption: 'Times skipped while waiting',
-      value: advanced.avgSkipCount,
+      value: advanced?.avgSkipCount || 0,
       color: 'text-indigo-600 dark:text-indigo-400',
       soft: 'bg-indigo-50 dark:bg-indigo-500/10',
       deco: 'bg-indigo-50 dark:bg-indigo-500/10',
       icon: <TrendingUp size={18} />
+    },
+    {
+      label: 'SLA Adherence',
+      caption: 'Served under 15 mins',
+      value: (advanced?.slaAdherence || 0) + '%',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      soft: 'bg-emerald-50 dark:bg-emerald-500/10',
+      deco: 'bg-emerald-50 dark:bg-emerald-500/10',
+      icon: <Target size={18} />
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       {metrics.map((m, idx) => (
         <div
           key={m.label}

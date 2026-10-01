@@ -18,6 +18,7 @@ async function getActiveStaffProfiles(servicePrefix) {
     const activeUsers = await prisma.user.findMany({
       where: {
         counterId: { not: null },
+        isOnline: true,
         ...filter
       },
       select: { id: true }
@@ -34,17 +35,9 @@ async function getActiveStaffProfiles(servicePrefix) {
   }
 }
 
-/**
- * Calculates the Team's Average Processing Time dynamically based on the specific 
- * staff members currently logged in.
- *
- * @param {number} serviceId - The ID of the service
- * @param {number[]} activeUserIds - Array of user IDs currently handling the service
- * @returns {Promise<number>} - The team's average service time in minutes
- */
 async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
   try {
-    // If no specific staff are logged in, fallback to global service average
+    // If no specific staff are logged in, fallback to global service median
     if (!activeUserIds || activeUserIds.length === 0) {
       const globalTickets = await prisma.ticket.findMany({
         where: { serviceId, status: 'COMPLETED', servedAt: { not: null }, completedAt: { not: null } },
@@ -52,12 +45,22 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
         take: 50
       });
       if (globalTickets.length === 0) return 5;
-      const totalMs = globalTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.servedAt)), 0);
-      return Math.max(1, Math.round((totalMs / globalTickets.length) / 60000));
+      
+      let timesMins = globalTickets.map(t => (new Date(t.completedAt).getTime() - new Date(t.servedAt).getTime()) / 60000);
+      timesMins = timesMins.filter(mins => mins <= 240); // Ignore absurd "forgotten" tickets > 4 hours
+      
+      if (timesMins.length === 0) return 5;
+
+      timesMins.sort((a, b) => a - b);
+      const mid = Math.floor(timesMins.length / 2);
+      const medianMins = timesMins.length % 2 !== 0 ? timesMins[mid] : (timesMins[mid - 1] + timesMins[mid]) / 2;
+      
+      return Math.max(0.5, medianMins);
     }
 
-    // Calculate specific average for EACH active user
-    const userAverages = [];
+    // Calculate Combined Team Throughput (tickets per minute) and Median per user
+    let teamThroughput = 0;
+
     for (const userId of activeUserIds) {
       const userTickets = await prisma.ticket.findMany({
         where: { serviceId, servedByUserId: userId, status: 'COMPLETED', servedAt: { not: null }, completedAt: { not: null } },
@@ -65,19 +68,35 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
         take: 10 // Last 10 tickets per user is enough to gauge their current speed
       });
 
-      if (userTickets.length === 0) {
-        // Fallback for new trainees: Assume 5 minutes
-        userAverages.push(5);
-      } else {
-        const totalMs = userTickets.reduce((sum, t) => sum + (new Date(t.completedAt) - new Date(t.servedAt)), 0);
-        const userAvgMins = (totalMs / userTickets.length) / 60000;
-        userAverages.push(userAvgMins);
+      let userMedianMins = 5; // Fallback for new trainees
+
+      if (userTickets.length > 0) {
+        let timesMins = userTickets.map(t => (new Date(t.completedAt).getTime() - new Date(t.servedAt).getTime()) / 60000);
+        timesMins = timesMins.filter(mins => mins <= 240); // Ignore absurd "forgotten" tickets > 4 hours
+        
+        if (timesMins.length > 0) {
+          timesMins.sort((a, b) => a - b);
+          const mid = Math.floor(timesMins.length / 2);
+          userMedianMins = timesMins.length % 2 !== 0 ? timesMins[mid] : (timesMins[mid - 1] + timesMins[mid]) / 2;
+        }
       }
+
+      // Safeguard against unrealistic 0-minute tickets (e.g. accidental rapid clicking)
+      userMedianMins = Math.max(0.5, userMedianMins);
+
+      // Add this user's throughput to the team (1 ticket / median mins)
+      teamThroughput += (1 / userMedianMins);
     }
 
-    // Combine individual speeds into a "Team Average" (Average of Averages)
-    const teamAverage = userAverages.reduce((a, b) => a + b, 0) / userAverages.length;
-    return Math.max(1, Math.round(teamAverage));
+    // Convert team throughput back into an "Effective Service Time" 
+    // that fits into the existing formula: WaitTime = (Rank / ActiveCounters) * AvgServiceTime
+    // We want WaitTime = Rank / TeamThroughput, so AvgServiceTime = ActiveCounters / TeamThroughput.
+    if (teamThroughput === 0) return 5;
+    
+    const activeCounters = activeUserIds.length;
+    const effectiveAvgServiceTime = activeCounters / teamThroughput;
+
+    return Math.max(0.5, effectiveAvgServiceTime);
   } catch (err) {
     console.error("Error calculating dynamic average:", err);
     return 5;

@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function PriorityMixCard({ priorityBreakdown }) {
-  if (priorityBreakdown.length === 0) {
+  if (!priorityBreakdown || priorityBreakdown.length === 0) {
     return (
       <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.25s' }}>
         <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Priority Mix</h2>

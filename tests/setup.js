@@ -4,11 +4,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 beforeAll(async () => {
+  await prisma.queueAudit.deleteMany();
   await prisma.ticket.deleteMany();
-  await prisma.user.deleteMany();
+  // Only delete users created during tests
+  await prisma.user.deleteMany({
+    where: { username: { startsWith: 'testuser_' } }
+  });
 });
 
 afterAll(async () => {
+  await prisma.queueAudit.deleteMany();
+  await prisma.ticket.deleteMany();
+  await prisma.user.deleteMany({
+    where: { username: { startsWith: 'testuser_' } }
+  });
   await prisma.$disconnect();
 });
 

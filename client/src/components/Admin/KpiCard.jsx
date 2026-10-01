@@ -7,12 +7,12 @@ function Sparkline({ data, color, id }) {
   const chartData = data.map((count, i) => ({ i, count }));
 
   return (
-    <div className="h-10 w-full pointer-events-none" title="Last 90 days">
+    <div className="h-full w-full pointer-events-none">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={`spark-${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
@@ -20,7 +20,7 @@ function Sparkline({ data, color, id }) {
             type="monotone"
             dataKey="count"
             stroke={color}
-            strokeWidth={2}
+            strokeWidth={2.5}
             fill={`url(#spark-${id})`}
             dot={false}
             isAnimationActive={false}
@@ -37,7 +37,6 @@ export default function KpiCard({
   icon,
   color,
   soft,
-  accent,
   hex,
   spark,
   delta,
@@ -46,28 +45,32 @@ export default function KpiCard({
 }) {
   return (
     <div
-      className="bg-surface rounded-3xl shadow-soft border border-border relative overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col animate-slide-up"
+      className="bg-surface rounded-2xl p-5 shadow-sm border border-border relative overflow-hidden group hover:shadow-md transition-all duration-300 hover:-translate-y-1 animate-slide-up flex flex-col"
       style={{ animationDelay: `${animationDelay}s` }}
     >
-      <div className={`h-1 w-full shrink-0 ${accent}`}></div>
-      <div className="p-4 flex flex-col gap-2 flex-1">
-        <div className="flex justify-between items-center gap-2 relative z-10">
-          <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">{label}</span>
-          <div className={`w-8 h-8 rounded-xl ${soft} ${color} flex items-center justify-center`}>{icon}</div>
+      <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-15 transition-opacity duration-700 ${soft}`}></div>
+      
+      <div className="flex justify-between items-start relative z-10 mb-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold text-text-muted mb-1">{label}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-3xl font-black text-text-main tracking-tight leading-none">{value}</h3>
+            {delta && (
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                delta.value >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-100 dark:border-emerald-500/20' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 border-rose-100 dark:border-rose-500/20'
+              }`}>
+                {delta.value >= 0 ? '+' : ''}{delta.value}%
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-baseline gap-2 relative z-10">
-          <span className={`text-3xl font-black tracking-tighter ${color}`}>{value}</span>
-          {delta && (
-            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-              delta.value >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600'
-            }`}>
-              {delta.value >= 0 ? '+' : ''}{delta.value}%
-            </span>
-          )}
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border border-white/20 dark:border-white/5 ${soft} ${color}`}>
+          {icon}
         </div>
-        <div className="mt-auto">
-          <Sparkline data={spark} color={hex} id={sparkId} />
-        </div>
+      </div>
+      
+      <div className="h-14 w-full mt-auto relative z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+        <Sparkline data={spark} color={hex} id={sparkId} />
       </div>
     </div>
   );
