@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api, socket } from '../api';
-import { getServiceSlots } from '../../shared/serviceSlots';
+import { getServiceSlots } from '../utils/serviceSlots';
 
 const TV_BADGES = [
   'text-emerald-400 bg-emerald-400/20 border-emerald-400/30',

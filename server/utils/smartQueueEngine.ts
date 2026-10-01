@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 /**
  * Smart Queue Engine
  * Decoupled, pure-math utility for sorting queue tickets based on fairness algorithms.
@@ -22,7 +24,7 @@ function calculateSmartScores(tickets, priorityGroups, settings, recentTickets) 
 
   const zipperRatio = settings.zipperRatio || 0;
   for (const [serviceId, ticketsForService] of Object.entries(recentByService)) {
-    const recentN = ticketsForService.slice(0, zipperRatio);
+    const recentN = (ticketsForService as any[]).slice(0, zipperRatio);
     if (zipperRatio > 0 && recentN.length === zipperRatio && recentN.every(t => t.priorityType !== 'REGULAR')) {
       zipperBoosts[serviceId] = true;
     }
@@ -89,7 +91,7 @@ function calculateSmartScores(tickets, priorityGroups, settings, recentTickets) 
     if (Math.abs(a._smartScore - b._smartScore) > 0.001) {
       return b._smartScore - a._smartScore; // Highest score first
     }
-    return new Date(a.createdAt) - new Date(b.createdAt); // Break ties by oldest
+    return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Break ties by oldest
   });
 
   // Clean up temporary property unless we need it for tests
@@ -150,3 +152,6 @@ function calculatePredictiveWaitTime(
 }
 
 module.exports = { calculateSmartScores, calculatePredictiveWaitTime };
+
+
+

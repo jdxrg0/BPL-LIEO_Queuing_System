@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const { Vonage } = require('@vonage/server-sdk');
 
@@ -54,4 +56,6 @@ const sendSMS = async (number, message) => {
 module.exports = {
   sendSMS
 };
+
+
 

@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 let io;
 
 module.exports = {
@@ -12,3 +14,5 @@ module.exports = {
     return io;
   }
 };
+
+

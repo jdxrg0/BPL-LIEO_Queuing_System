@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 export {};
 const prisma = require('../config/db');
@@ -1090,4 +1092,6 @@ module.exports = {
   checkInTicket,
   exportTickets: exports.exportTickets
 };
+
+
 

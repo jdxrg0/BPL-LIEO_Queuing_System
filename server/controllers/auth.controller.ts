@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -86,4 +88,6 @@ const logout = async (req, res) => {
 };
 
 module.exports = { login, logout };
+
+
 

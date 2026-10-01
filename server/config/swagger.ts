@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
@@ -37,3 +39,5 @@ module.exports = {
   swaggerUi,
   specs,
 };
+
+

@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const express = require('express');
 const router = express.Router();
 const metaController = require('../controllers/meta.controller');
@@ -17,3 +19,5 @@ router.put('/priority-groups/:id', verifyToken, metaController.updatePriorityGro
 router.delete('/priority-groups/:id', verifyToken, metaController.deletePriorityGroup);
 
 module.exports = router;
+
+

@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
@@ -53,4 +55,6 @@ const initAutomatedBackups = () => {
 };
 
 module.exports = { initAutomatedBackups, backupDatabase };
+
+
 

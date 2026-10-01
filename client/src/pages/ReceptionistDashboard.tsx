@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, socket } from '../api';
-import { getServiceSlots } from '../../shared/serviceSlots';
+import { getServiceSlots } from '../utils/serviceSlots';
 
 const RECEPTION_STYLES = [
   { text: 'text-success', border: 'border-success' },

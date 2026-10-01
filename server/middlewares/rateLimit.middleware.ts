@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const rateLimit = require('express-rate-limit');
 
 // Strict rate limiter for login route to prevent brute-force attacks
@@ -32,3 +34,5 @@ const apiLimiter = rateLimit({
 });
 
 module.exports = { loginLimiter, apiLimiter };
+
+

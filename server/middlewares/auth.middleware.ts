@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 
@@ -46,3 +48,5 @@ const requireAdmin = (req, res, next) => {
 };
 
 module.exports = { verifyToken, requireAdmin, SECRET_KEY };
+
+

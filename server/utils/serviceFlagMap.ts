@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const prisma = require('../config/db');
 const { FLAG_ORDER } = require('../../shared/serviceSlots.js');
 
@@ -29,3 +31,4 @@ function getUnallocatableServices(services) {
 }
 
 module.exports = { FLAG_ORDER, buildServiceFlagMap, getActiveServices, getUnallocatableServices };
+

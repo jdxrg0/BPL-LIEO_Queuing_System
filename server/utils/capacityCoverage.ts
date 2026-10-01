@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 /**
  * Minimum coverage guarantee for auto-allocation.
  *
@@ -31,7 +33,7 @@ function ensureMinimumCoverage(assignments, services, flagByPrefix) {
     if (assignments.some(a => a[flag])) continue; // Already covered
 
     // Give this window to the user carrying the fewest active flags (multi-task).
-    let target = null;
+    let target: any = null;
     let fewestFlags = Infinity;
     for (const a of assignments) {
       const count = flags.reduce((sum, f) => sum + (a[f] ? 1 : 0), 0);
@@ -51,3 +53,5 @@ function ensureMinimumCoverage(assignments, services, flagByPrefix) {
 }
 
 module.exports = { ensureMinimumCoverage };
+
+

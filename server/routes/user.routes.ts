@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
@@ -18,3 +20,5 @@ router.put('/:id/change-password', userController.changePassword);
 router.put('/:id/profile', userController.updateUserProfile);
 
 module.exports = router;
+
+

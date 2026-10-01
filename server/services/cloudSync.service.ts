@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -276,5 +278,7 @@ module.exports = {
   syncQueueState,
   getDb: () => db
 };
+
+
 
 

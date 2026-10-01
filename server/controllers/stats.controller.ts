@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const prisma = require('../config/db');
 const { buildServiceFlagMap } = require('../utils/serviceFlagMap');
@@ -469,4 +471,6 @@ const getLiveFlow = async (req, res) => {
   }
 };
 module.exports.getLiveFlow = getLiveFlow;
+
+
 

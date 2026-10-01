@@ -123,7 +123,7 @@ describe('BPL-LIEO Queuing System API Integration Tests', () => {
           priorityType: 'REGULAR'
         });
       
-      expect([200, 201]).toContain(res.status);
+      console.log(res.body); expect([200, 201]).toContain(res.status);
       expect(res.body).toHaveProperty('number');
       expect(typeof res.body.number).toBe('string');
       
@@ -220,3 +220,4 @@ describe('BPL-LIEO Queuing System API Integration Tests', () => {
     });
   });
 });
+

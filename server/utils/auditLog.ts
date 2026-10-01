@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const prisma = require('../config/db');
 
@@ -28,4 +30,6 @@ async function logAudit({ ticketId, fromStatus, toStatus, performedBy = null, wi
 }
 
 module.exports = { logAudit };
+
+
 

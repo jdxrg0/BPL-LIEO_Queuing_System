@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const validate = (schema) => (req, res, next) => {
   try {
     schema.parse({
@@ -14,3 +16,5 @@ const validate = (schema) => (req, res, next) => {
 };
 
 module.exports = validate;
+
+

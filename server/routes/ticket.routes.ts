@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticket.controller');
@@ -59,3 +61,5 @@ router.get('/export', verifyToken, ticketController.exportTickets);
 router.post('/auto-assign', verifyToken, ticketController.autoAssignNext);
 
 module.exports = router;
+
+

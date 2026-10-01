@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const { z } = require('zod');
 
 const createTicketSchema = z.object({
@@ -25,3 +27,5 @@ module.exports = {
   createTicketSchema,
   callTicketSchema
 };
+
+

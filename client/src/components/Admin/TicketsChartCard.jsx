@@ -28,30 +28,7 @@ export default function TicketsChartCard({ trend, trendStart, trendEnd, onStartC
           <p className="text-text-muted m-0 text-sm font-medium">Daily completed tickets broken down by application type</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full xl:w-auto">
-          {/* Custom Styled Date Range Picker */}
-          <div className="flex items-center bg-bg-color p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm w-full sm:w-auto">
-            <div className="flex items-center bg-surface px-3 py-2 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 flex-1 sm:flex-none">
-              <Calendar size={14} className="text-text-muted mr-2" />
-              <input 
-                type="date" 
-                value={trendStart} 
-                onChange={(e) => onStartChange(e.target.value)} 
-                className="bg-transparent text-sm font-bold text-text-main outline-none border-none cursor-pointer w-full"
-              />
-            </div>
-            <span className="text-text-muted font-bold text-sm px-3">&rarr;</span>
-            <div className="flex items-center bg-surface px-3 py-2 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 flex-1 sm:flex-none">
-              <Calendar size={14} className="text-text-muted mr-2" />
-              <input 
-                type="date" 
-                value={trendEnd} 
-                onChange={(e) => onEndChange(e.target.value)} 
-                className="bg-transparent text-sm font-bold text-text-main outline-none border-none cursor-pointer w-full"
-              />
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       <div className="flex flex-wrap gap-5 mb-6 px-1">

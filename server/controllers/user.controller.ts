@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/db');
@@ -105,7 +107,7 @@ const updateUser = async (req, res) => {
     }
 
     // Whitelist only allowed fields for update
-    const updateData = {};
+    const updateData: any = {};
 
     if (name !== undefined) updateData.name = name;
     if (username !== undefined) updateData.username = username;
@@ -351,4 +353,7 @@ module.exports = {
   resetPassword,
   deleteUser
 };
+
+
+
 

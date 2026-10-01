@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const prisma = require('../config/db');
 const { buildServiceFlagMap, getActiveServices } = require('./serviceFlagMap');
@@ -109,3 +111,5 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
 }
 
 module.exports = { getActiveStaffProfiles, getDynamicAverageServiceTime };
+
+

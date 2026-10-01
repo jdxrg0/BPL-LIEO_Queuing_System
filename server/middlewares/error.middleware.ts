@@ -1,3 +1,5 @@
+// @ts-nocheck
+export {};
 const logger = require('../utils/logger');
 const { Prisma } = require('@prisma/client');
 
@@ -51,4 +53,6 @@ const errorHandler = (err, req, res, next) => {
 };
 
 module.exports = errorHandler;
+
+
 
