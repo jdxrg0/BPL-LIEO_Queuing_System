@@ -89,6 +89,7 @@ model Settings {
   zipperRatio          Int     @default(3)
   agingRate            Float   @default(0.1)
   skipLimit            Int     @default(5)
+  autoBalanceMode      String  @default("peace")
   ticketHeaderText     String  @default("Scan to track your ticket")
   ticketFooterText     String  @default("Please wait for your number.")
   showWaitTimeOnTicket Boolean @default(true)
@@ -131,3 +132,4 @@ model QueueAudit {
   @@index([ticketId])
   @@index([createdAt])
 }
+

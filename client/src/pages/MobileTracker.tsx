@@ -565,7 +565,12 @@ const MobileTracker = () => {
         await subscription.unsubscribe();
       }
 
-      const publicVapidKey = 'BKEFqoADtJUFNkyGKbtQLA2JweGfs5Q-s1V5JxaoqHqWDaEI30qfimnMsc3yJ_09v9cIggnq8Jt5CnkJdHZ_H0U';
+      const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      
+      if (!publicVapidKey) {
+        throw new Error('VITE_VAPID_PUBLIC_KEY is not defined in environment variables');
+      }
+
       const padding = '='.repeat((4 - publicVapidKey.length % 4) % 4);
       const base64 = (publicVapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
       const rawData = window.atob(base64);

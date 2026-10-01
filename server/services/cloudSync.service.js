@@ -30,7 +30,7 @@ const syncQueueDebounceMap = new Map();
  * Called when a ticket is created or its status updates to WAITING or SERVING.
  * @param {Object} ticket - The ticket object from Prisma
  */
-const syncTicket = async (ticket) => {
+async function syncTicket(ticket) {
   if (!db) return; // Skip if Firebase is not configured
 
   const ticketId = ticket.id.toString();
@@ -95,7 +95,7 @@ const syncTicket = async (ticket) => {
  * Called when a ticket is COMPLETED or NO_SHOW to keep the cloud db small.
  * @param {number} ticketId - The ID of the ticket
  */
-const removeTicket = async (ticketId) => {
+async function removeTicket(ticketId) {
   if (!db) return;
 
   try {
@@ -108,7 +108,7 @@ const removeTicket = async (ticketId) => {
 /**
  * Perform an initial catch-up sync of all active tickets on server startup.
  */
-const catchUpSync = async (prismaInstance = prisma) => {
+async function catchUpSync(prismaInstance = prisma) {
   if (!db) return;
   
   logger.info('Cloud Sync: Performing catch-up sync...');
@@ -138,7 +138,7 @@ const catchUpSync = async (prismaInstance = prisma) => {
  * Automatically clean up Firebase tickets that are older than 24 hours.
  * This ensures the free database never gets full, without the user having to do anything.
  */
-const autoCleanupOldCloudTickets = async () => {
+async function autoCleanupOldCloudTickets() {
   if (!db) return;
   try {
     const yesterday = new Date();
@@ -168,7 +168,7 @@ const autoCleanupOldCloudTickets = async () => {
  * Clear the entire live_tickets collection from Firebase.
  * Called when the Admin clicks "Reset All Data".
  */
-const clearCloudDatabase = async () => {
+async function clearCloudDatabase() {
   if (!db) return;
 
   try {
@@ -189,7 +189,7 @@ const clearCloudDatabase = async () => {
  * Stored in `live_tickets/__settings__` so it shares the same security rules
  * as the ticket data (which already allows public reads from Vercel).
  */
-const syncSettings = async (settings) => {
+async function syncSettings(settings) {
   if (!db) return;
 
   try {
@@ -276,4 +276,5 @@ module.exports = {
   syncQueueState,
   getDb: () => db
 };
+
 

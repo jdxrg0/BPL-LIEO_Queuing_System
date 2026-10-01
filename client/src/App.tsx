@@ -71,6 +71,19 @@ function App() {
         setUser(null);
       }
     }
+    
+    // Check every minute if the day has changed (Midnight re-auth flow)
+    const interval = setInterval(() => {
+      const currentLoginDate = localStorage.getItem('bplo_login_date');
+      if (currentLoginDate && currentLoginDate !== new Date().toDateString()) {
+        alert('Your session has expired (system resets at midnight). Please log in again to continue.');
+        localStorage.removeItem('bplo_user');
+        localStorage.removeItem('bplo_login_date');
+        setUser(null);
+      }
+    }, 60000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Global favicon & site name: runs once on mount for ALL pages (Login, Tracker, etc.)

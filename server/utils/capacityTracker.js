@@ -62,13 +62,17 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
     // Calculate Combined Team Throughput (tickets per minute) and Median per user
     let teamThroughput = 0;
 
-    for (const userId of activeUserIds) {
-      const userTickets = await prisma.ticket.findMany({
+    const userTicketsPromises = activeUserIds.map(userId => 
+      prisma.ticket.findMany({
         where: { serviceId, servedByUserId: userId, status: 'COMPLETED', servedAt: { not: null }, completedAt: { not: null } },
         orderBy: { completedAt: 'desc' },
         take: 10 // Last 10 tickets per user is enough to gauge their current speed
-      });
+      })
+    );
+    const userTicketsResults = await Promise.all(userTicketsPromises);
 
+    for (let i = 0; i < activeUserIds.length; i++) {
+      const userTickets = userTicketsResults[i];
       let userMedianMins = 5; // Fallback for new trainees
 
       if (userTickets.length > 0) {
@@ -105,4 +109,3 @@ async function getDynamicAverageServiceTime(serviceId, activeUserIds) {
 }
 
 module.exports = { getActiveStaffProfiles, getDynamicAverageServiceTime };
-

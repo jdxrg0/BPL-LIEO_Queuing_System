@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api, socket } from '../api';
-import { getServiceSlots } from '../utils/serviceSlots';
+import { getServiceSlots } from '../../shared/serviceSlots';
 
 const TV_BADGES = [
   'text-emerald-400 bg-emerald-400/20 border-emerald-400/30',
@@ -276,3 +276,4 @@ export default function TVDisplay() {
     </div>
   );
 }
+

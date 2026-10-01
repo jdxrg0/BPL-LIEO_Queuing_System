@@ -3,7 +3,7 @@ export {};
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { scheduleAutoBalance } = require('./meta.controller');
-const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
+const { syncTicket, syncQueueState, removeTicket, getDb } = require('../services/cloudSync.service');
 const { buildServiceFlagMap, getActiveServices } = require('../utils/serviceFlagMap');
 const { logAudit } = require('../utils/auditLog');
 

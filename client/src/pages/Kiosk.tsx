@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, socket } from '../api';
-import { getServiceSlots } from '../utils/serviceSlots';
+import { getServiceSlots } from '../../shared/serviceSlots';
 
 export default function Kiosk() {
   const [services, setServices] = useState<any[]>([]);
@@ -165,3 +165,4 @@ export default function Kiosk() {
     </div>
   );
 }
+

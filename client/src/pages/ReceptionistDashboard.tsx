@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api, socket } from '../api';
-import { getServiceSlots } from '../utils/serviceSlots';
+import { getServiceSlots } from '../../shared/serviceSlots';
 
 const RECEPTION_STYLES = [
   { text: 'text-success', border: 'border-success' },
@@ -245,3 +245,4 @@ export default function ReceptionistDashboard({ user }: { user?: any }) {
     </div>
   );
 }
+

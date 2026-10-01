@@ -170,9 +170,7 @@ initAutomatedBackups();
 async function startServer() {
   // Reset all users' online status on startup before accepting connections
   try {
-    try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN "isOnline" BOOLEAN NOT NULL DEFAULT 0;');
-    } catch (e) {}
+
     await prisma.user.updateMany({
       data: { isOnline: false }
     });
@@ -239,4 +237,5 @@ process.on('SIGINT', () => cleanup('SIGINT'));
 process.once('SIGUSR2', () => cleanup('SIGUSR2'));
 
 module.exports = { app, server, io };
+
 

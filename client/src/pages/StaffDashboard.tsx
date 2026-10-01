@@ -7,7 +7,7 @@ import HoldActionBtn from '../components/Buttons/HoldActionBtn';
 import HoldButton from '../components/Buttons/HoldButton';
 import HoldTextButton from '../components/Buttons/HoldTextButton';
 import ModalWrapper from '../components/Modals/ModalWrapper';
-import { getServiceSlots, DEFAULT_SLOT_STYLE } from '../utils/serviceSlots';
+import { getServiceSlots, DEFAULT_SLOT_STYLE } from '../../shared/serviceSlots';
 import { User, Ticket, TicketStatus, Service } from '../types';
 
 export default function StaffDashboard({ user }: { user: User }) {
@@ -409,5 +409,6 @@ export default function StaffDashboard({ user }: { user: User }) {
     </div>
   );
 }
+
 
 
