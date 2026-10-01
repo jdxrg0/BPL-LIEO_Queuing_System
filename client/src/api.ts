@@ -1,10 +1,8 @@
 import { io } from 'socket.io-client';
 
-// In development, Vite proxies /api and /socket.io to the backend (see vite.config.js).
-// In production, set VITE_BACKEND_URL to the server's full URL (e.g. http://192.168.1.10:5000).
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? '';
+const BACKEND_URL = `http://${window.location.hostname}:5000`;
 const API_URL = `${BACKEND_URL}/api`;
-export const socket = io(BACKEND_URL || window.location.origin);
+export const socket = io(BACKEND_URL);
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
@@ -39,24 +37,26 @@ export const api = {
       body: JSON.stringify({ username, password })
     });
     if (data.token) {
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('token', data.token); // Store token
     }
     return data;
   },
-
+  
   logout: async (userId) => {
     try {
-      await request(`${API_URL}/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ userId }),
-      });
+      if (userId) {
+        await fetch(`${API_URL}/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+      }
+    } catch (e) {
+      console.error('Logout API failed', e);
     } finally {
-      // Always clear local token, even if the server call fails
       localStorage.removeItem('token');
     }
   },
-
 
   // Metadata
   getServices: async () => {
@@ -171,17 +171,18 @@ export const api = {
       body: JSON.stringify({ serviceId, createdByUserId, priorityType })
     });
   },
+  checkInTicket: async (number, priorityType) => {
+    return request(`${API_URL}/tickets/checkin/${number}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ priorityType })
+    });
+  },
   bulkGenerateTickets: async (tickets) => {
     return request(`${API_URL}/tickets/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ tickets })
-    });
-  },
-  checkInTicket: async (number: string) => {
-    return request(`${API_URL}/tickets/checkin/${number}`, {
-      method: 'POST',
-      headers: getAuthHeaders() as any
     });
   },
   autoBalanceCounters: async () => {
@@ -193,13 +194,6 @@ export const api = {
   callTicket: async (ticketId, counterId, servedByUserId) => {
     return request(`${API_URL}/tickets/${ticketId}/call`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ counterId, servedByUserId })
-    });
-  },
-  autoAssignNext: async (counterId: number, servedByUserId: number) => {
-    return request(`${API_URL}/tickets/auto-assign`, {
-      method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ counterId, servedByUserId })
     });
