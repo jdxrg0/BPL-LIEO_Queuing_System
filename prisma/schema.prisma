@@ -12,7 +12,7 @@ model User {
   username     String   @unique
   passwordHash String
   name         String
-  role         String   @default("STAFF") // Valid values: "ADMIN" | "STAFF" | "RECEPTIONIST"
+  role         String   @default("STAFF") // "ADMIN" or "STAFF"
   createdAt    DateTime @default(now())
 
   // Catering Permissions
@@ -77,19 +77,28 @@ model Ticket {
   servedByUser     User?    @relation("TicketServer", fields: [servedByUserId], references: [id])
 
   audits           QueueAudit[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([servedAt])
+  @@index([completedAt])
+  @@index([serviceId])
+  @@index([servedByUserId])
+  @@index([status, completedAt])
 }
+
 
 model Settings {
   id                   Int     @id @default(1)
   websiteName          String  @default("BPLO Queuing System")
   logoBase64           String?
   autoAdaptive         Boolean @default(false)
+  autoBalanceMode      String  @default("peace")
   autoBalanceThreshold Int     @default(15)
   slaThreshold         Int     @default(15)
   zipperRatio          Int     @default(3)
   agingRate            Float   @default(0.1)
   skipLimit            Int     @default(5)
-  autoBalanceMode      String  @default("peace")
   ticketHeaderText     String  @default("Scan to track your ticket")
   ticketFooterText     String  @default("Please wait for your number.")
   showWaitTimeOnTicket Boolean @default(true)
@@ -132,4 +141,3 @@ model QueueAudit {
   @@index([ticketId])
   @@index([createdAt])
 }
-

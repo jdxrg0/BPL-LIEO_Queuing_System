@@ -30,7 +30,7 @@ const options = {
     security: [{ bearerAuth: [] }],
   },
   // Tells Swagger to look for JSDoc comments inside these files to auto-generate the docs
-  apis: ['./server/routes/*.js'], 
+  apis: ['./server/routes/*.ts'], 
 };
 
 const specs = swaggerJsdoc(options);

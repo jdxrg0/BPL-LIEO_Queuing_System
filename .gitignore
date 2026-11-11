@@ -4,4 +4,16 @@ node_modules/
 client/.env
 client/.env.local
 server/config/serviceAccountKey.json
-
+*.db
+*.db-shm
+*.db-wal
+backups/
+crash.log
+fix_*.js
+replace*.js
+temp_*.js
+patch*.js
+patch*.py
+update_*.js
+output.*
+test_*.js

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, ReactNode, CSSProperties } from 'react';
+import { motion } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
 interface HoldActionBtnProps {
-  onAction: () => void;
+  onAction: () => Promise<void> | void;
   text?: string;
   children?: ReactNode;
   style?: CSSProperties;
@@ -11,49 +13,47 @@ interface HoldActionBtnProps {
 }
 
 export default function HoldActionBtn({ onAction, text, children, style, className, holdTime = 600, disabled = false }: HoldActionBtnProps) {
-  const [progress, setProgress] = useState(0);
+  const [isHolding, setIsHolding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const timerRef = useRef<any>(null);
 
   const startHold = (e: React.MouseEvent | React.TouchEvent) => {
-    if (disabled) return;
-    // Only left clicks or touches
-    if (e.type === 'mousedown' && ('button' in e) && e.button !== 0) return;
+    if (disabled || isLoading) return;
+    if (e.type === 'mousedown' && ('button' in e) && (e as React.MouseEvent).button !== 0) return;
     
-    // Clear any existing timer
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) clearTimeout(timerRef.current);
     
-    setProgress(0);
-    let p = 0;
-    const intervalTime = 50;
-    const ticks = holdTime / intervalTime;
+    setIsHolding(true);
     
-    timerRef.current = setInterval(() => {
-      p += (100 / ticks);
-      setProgress(Math.min(p, 100));
-      if (p >= 100) {
-        clearInterval(timerRef.current);
-        onAction();
-        setTimeout(() => setProgress(0), 150);
+    timerRef.current = setTimeout(async () => {
+      setIsHolding(false);
+      setIsLoading(true);
+      try {
+        await onAction();
+      } finally {
+        setIsLoading(false);
       }
-    }, intervalTime);
+    }, holdTime);
   };
 
   const endHold = () => {
     if (timerRef.current) {
-      clearInterval(timerRef.current);
+      clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    setProgress(0);
+    setIsHolding(false);
   };
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
   return (
-    <button 
+    <motion.button 
+      whileTap={disabled || isLoading ? {} : { scale: 0.92 }}
+      transition={{ type: "spring", stiffness: 500, damping: 25 }}
       className={className}
       onMouseDown={startHold}
       onMouseUp={endHold}
@@ -67,22 +67,37 @@ export default function HoldActionBtn({ onAction, text, children, style, classNa
         overflow: 'hidden',
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        WebkitTouchCallout: 'none'
+        WebkitTouchCallout: 'none',
+        border: 'none',
+        outline: 'none',
+        cursor: (disabled || isLoading) ? 'default' : 'pointer',
+        opacity: isLoading ? 0.7 : 1,
       }}
     >
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        height: '100%',
-        width: `${progress}%`,
-        background: 'rgba(0, 0, 0, 0.2)',
-        transition: progress === 0 ? 'none' : 'width 0.05s linear',
-        zIndex: 1
-      }}></div>
+      <motion.div 
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ 
+          scaleX: isHolding ? 1 : (isLoading ? 1 : 0), 
+          opacity: isHolding ? 1 : (isLoading ? 0.5 : 0)
+        }}
+        transition={{ 
+          scaleX: isHolding ? { duration: holdTime / 1000, ease: "linear" } : { duration: 0.2 },
+          opacity: { duration: 0.1 }
+        }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          height: '100%',
+          width: '100%',
+          background: isLoading ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.15)',
+          transformOrigin: 'left',
+          zIndex: 1
+        }}
+      />
       <span style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
-        {children || text}
+        {isLoading ? <Loader2 size={16} className="animate-spin" /> : (children || text)}
       </span>
-    </button>
+    </motion.button>
   );
 }

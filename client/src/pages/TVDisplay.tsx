@@ -14,6 +14,7 @@ export default function TVDisplay() {
   const [isStarted, setIsStarted] = useState(false);
   const [settings, setSettings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeStaffCount, setActiveStaffCount] = useState(0);
   const [liveWaitTimes, setLiveWaitTimes] = useState({});
   const [priorityGroups, setPriorityGroups] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -59,11 +60,13 @@ export default function TVDisplay() {
 
   const fetchRecent = async () => {
     try {
-      const [tickets, waitTimes] = await Promise.all([
+      const [tickets, waitTimes, staffStatus] = await Promise.all([
         api.getDisplayTickets(),
-        api.getLiveWaitTimes()
+        api.getLiveWaitTimes(),
+        api.getStaffStatus()
       ]);
       setLiveWaitTimes(waitTimes && typeof waitTimes === 'object' ? waitTimes : {});
+      setActiveStaffCount(staffStatus?.activeStaff || 0);
       
       if (Array.isArray(tickets) && tickets.length > 0) {
         const serving = tickets.filter(t => t.status === 'SERVING');
@@ -223,7 +226,7 @@ export default function TVDisplay() {
               })
           ) : (
             <div className="col-span-full flex items-center justify-center min-h-[50vh]">
-              <h1 className="text-6xl text-text-muted drop-shadow-sm font-bold opacity-50">No Active Queue</h1>
+              <h1 className="text-6xl text-text-muted drop-shadow-sm font-bold">{activeStaffCount === 0 ? "Office Closed" : "Waiting for tickets..."}</h1>
             </div>
           )}
         </div>
@@ -276,4 +279,3 @@ export default function TVDisplay() {
     </div>
   );
 }
-

@@ -1,3 +1,6 @@
+jest.mock('../server/services/cloudSync.service', () => ({ syncTicket: jest.fn(), syncSettings: jest.fn(), catchUpSync: jest.fn(), removeTicket: jest.fn(), syncQueueState: jest.fn(), clearCloudDatabase: jest.fn(), autoCleanupOldCloudTickets: jest.fn() }));
+jest.mock('firebase-admin/app', () => ({ getApps: jest.fn(() => [{}]), initializeApp: jest.fn(), cert: jest.fn() }));
+jest.mock('firebase-admin/firestore', () => { const collectionMock = { doc: jest.fn().mockReturnThis(), set: jest.fn(), delete: jest.fn(), where: jest.fn().mockReturnThis(), get: jest.fn().mockResolvedValue({ empty: true, forEach: jest.fn() }) }; return { getFirestore: jest.fn(() => ({ collection: jest.fn(() => collectionMock) })), Timestamp: { fromDate: jest.fn() } }; });
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
@@ -39,7 +42,7 @@ const createTestUser = async (role) => {
 
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    process.env.JWT_SECRET || 'bpl-lieo-super-secret-key',
+    process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
 
@@ -50,3 +53,5 @@ module.exports = {
   prisma,
   createTestUser
 };
+
+

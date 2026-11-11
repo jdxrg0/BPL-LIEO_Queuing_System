@@ -15,14 +15,87 @@ const getStats = async (req, res) => {
     const startOfYear = new Date(queryYear, 0, 1);
     const endOfYear = new Date(queryYear, 11, 31, 23, 59, 59);
 
-    // Office Stats - Grouped aggregation for performance
-    const officeGroup = await prisma.ticket.groupBy({
-      by: ['serviceId'],
-      where: { status: 'COMPLETED', completedAt: { gte: startOfYear, lte: endOfYear } },
-      _count: { id: true }
-    });
-    
-    const services = await prisma.service.findMany();
+    let trendStart, trendEnd;
+
+    if (startDate && endDate) {
+      trendStart = new Date(startDate);
+      trendEnd = new Date(endDate);
+      if (isNaN(trendStart.getTime()) || isNaN(trendEnd.getTime())) {
+        return res.status(400).json({ error: 'Invalid date format provided.' });
+      }
+    } else {
+      trendStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      trendEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    }
+    trendStart.setHours(0, 0, 0, 0);
+    trendEnd.setHours(23, 59, 59, 999);
+
+    const prevYearStart = new Date(trendStart);
+    prevYearStart.setFullYear(prevYearStart.getFullYear() - 1);
+    const prevYearEnd = new Date(trendEnd);
+    prevYearEnd.setFullYear(prevYearEnd.getFullYear() - 1);
+
+    // Parallelize all queries for extreme performance improvement
+    const [
+      officeGroup,
+      services,
+      trendTickets,
+      noShowTickets,
+      postponedTickets,
+      users,
+      employeeGroup,
+      employeeAllTimeGroup,
+      priorityGroupsDb,
+      prevYearCount
+    ] = await Promise.all([
+      prisma.ticket.groupBy({
+        by: ['serviceId'],
+        where: { status: 'COMPLETED', completedAt: { gte: startOfYear, lte: endOfYear } },
+        _count: { id: true }
+      }),
+      prisma.service.findMany(),
+      prisma.ticket.findMany({
+        where: {
+          status: 'COMPLETED',
+          completedAt: { gte: trendStart, lte: trendEnd }
+        },
+        select: { 
+          createdAt: true,
+          servedAt: true,
+          completedAt: true, 
+          serviceId: true, 
+          skipCount: true, 
+          priorityType: true,
+          counter: { select: { name: true } }
+        }
+      }),
+      prisma.ticket.findMany({
+        where: { status: 'NO_SHOW', servedAt: { gte: trendStart, lte: trendEnd } },
+        select: { servedAt: true }
+      }),
+      prisma.ticket.findMany({
+        where: { status: 'POSTPONED', createdAt: { gte: trendStart, lte: trendEnd } },
+        select: { createdAt: true }
+      }),
+      prisma.user.findMany({
+        select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true, isOnline: true }
+      }),
+      prisma.ticket.groupBy({
+        by: ['servedByUserId', 'serviceId'],
+        where: { status: 'COMPLETED', servedByUserId: { not: null }, completedAt: { gte: startOfYear, lte: endOfYear } },
+        _count: { id: true }
+      }),
+      prisma.ticket.groupBy({
+        by: ['servedByUserId'],
+        where: { status: 'COMPLETED', servedByUserId: { not: null } },
+        _count: { id: true }
+      }),
+      prisma.priorityGroup.findMany(),
+      prisma.ticket.count({
+        where: { status: 'COMPLETED', completedAt: { gte: prevYearStart, lte: prevYearEnd } }
+      })
+    ]);
+
     const { slotByServiceId } = buildServiceFlagMap(services);
 
     let total = 0, newApp = 0, renewal = 0, retirement = 0;
@@ -36,62 +109,45 @@ const getStats = async (req, res) => {
 
     const officeStats = { isHistorical, total, newApp, renewal, retirement, year: queryYear };
 
-    // Trend Stats
     const trend = [];
-    let trendStart, trendEnd;
-
-    if (startDate && endDate) {
-      trendStart = new Date(startDate);
-      trendEnd = new Date(endDate);
-      // Validate dates to prevent server crash on setHours
-      if (isNaN(trendStart.getTime()) || isNaN(trendEnd.getTime())) {
-        return res.status(400).json({ error: 'Invalid date format provided.' });
-      }
-    } else {
-      trendStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      trendEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    }
-    trendStart.setHours(0, 0, 0, 0);
-    trendEnd.setHours(23, 59, 59, 999);
-
-    // Fetching minimal fields but including times and counter for new metrics
-    const trendTickets = await prisma.ticket.findMany({
-      where: {
-        status: 'COMPLETED',
-        completedAt: { gte: trendStart, lte: trendEnd }
-      },
-      select: { 
-        createdAt: true,
-        servedAt: true,
-        completedAt: true, 
-        serviceId: true, 
-        skipCount: true, 
-        priorityType: true,
-        counter: { select: { name: true } }
-      }
-    });
-
     const dateBuckets = {};
+    const sparkBuckets = {};
+    
     let current = new Date(trendStart);
     let loopCount = 0;
-    // Cap at 366 days to prevent infinite loops from bad date inputs
     while (current <= trendEnd && loopCount < 366) {
       const monthStr = current.toLocaleString('default', { month: 'short' });
       const dateStr = `${monthStr} ${current.getDate()}`;
       dateBuckets[dateStr] = { total: 0, newApp: 0, renewal: 0, retirement: 0, waitTimeMs: 0, waitCount: 0, serviceTimeMs: 0, serviceCount: 0, dropOffs: 0 };
       
+      sparkBuckets[current.toDateString()] = { total: 0, newApp: 0, renewal: 0, retirement: 0 };
+      
       current.setDate(current.getDate() + 1);
       loopCount++;
     }
+
+    let totalSkip = 0;
+    const priorityCounts = {};
+    const hourCounts = new Array(24).fill(0);
+    const dayCounts = new Array(7).fill(0);
+    const counterCounts = {};
+    
+    let totalWaitTimeMs = 0;
+    let waitTimeCount = 0;
+    let totalServiceTimeMs = 0;
+    let serviceTimeCount = 0;
+    let slaMetCount = 0;
 
     trendTickets.forEach(t => {
       if (!t.completedAt) return;
       const d = new Date(t.completedAt);
       const monthStr = d.toLocaleString('default', { month: 'short' });
       const dateStr = `${monthStr} ${d.getDate()}`;
+      const sparkKey = d.toDateString();
+      const slot = slotByServiceId[t.serviceId];
+
       if (dateBuckets[dateStr] !== undefined) {
         dateBuckets[dateStr].total++;
-        const slot = slotByServiceId[t.serviceId];
         if (slot === 0) dateBuckets[dateStr].newApp++;
         if (slot === 1) dateBuckets[dateStr].renewal++;
         if (slot === 2) dateBuckets[dateStr].retirement++;
@@ -106,22 +162,47 @@ const getStats = async (req, res) => {
         
         if (t.servedAt && t.completedAt) {
           const serviceMs = new Date(t.completedAt) - new Date(t.servedAt);
-          if (serviceMs >= 0 && serviceMs <= 14400000) { // Ignore > 4hr anomalies
+          if (serviceMs >= 0 && serviceMs <= 14400000) { 
             dateBuckets[dateStr].serviceTimeMs += serviceMs;
             dateBuckets[dateStr].serviceCount++;
           }
         }
       }
-    });
 
-        const noShowTickets = await prisma.ticket.findMany({
-      where: { status: 'NO_SHOW', servedAt: { gte: trendStart, lte: trendEnd } },
-      select: { servedAt: true }
-    });
-    
-    const postponedTickets = await prisma.ticket.findMany({
-      where: { status: 'POSTPONED', createdAt: { gte: trendStart, lte: trendEnd } },
-      select: { createdAt: true }
+      if (sparkBuckets[sparkKey] !== undefined) {
+        sparkBuckets[sparkKey].total++;
+        if (slot === 0) sparkBuckets[sparkKey].newApp++;
+        if (slot === 1) sparkBuckets[sparkKey].renewal++;
+        if (slot === 2) sparkBuckets[sparkKey].retirement++;
+      }
+
+      totalSkip += t.skipCount || 0;
+      const p = t.priorityType || 'REGULAR';
+      priorityCounts[p] = (priorityCounts[p] || 0) + 1;
+      
+      hourCounts[d.getHours()]++;
+      dayCounts[d.getDay()]++;
+      
+      if (t.createdAt && t.servedAt) {
+        const waitMs = new Date(t.servedAt) - new Date(t.createdAt);
+        if (waitMs >= 0) {
+          totalWaitTimeMs += waitMs;
+          waitTimeCount++;
+          if (waitMs <= 15 * 60000) slaMetCount++;
+        }
+      }
+      
+      if (t.servedAt && t.completedAt) {
+        const serviceMs = new Date(t.completedAt) - new Date(t.servedAt);
+        if (serviceMs >= 0 && serviceMs <= 14400000) {
+          totalServiceTimeMs += serviceMs;
+          serviceTimeCount++;
+        }
+      }
+      
+      if (t.counter && t.counter.name) {
+        counterCounts[t.counter.name] = (counterCounts[t.counter.name] || 0) + 1;
+      }
     });
 
     noShowTickets.forEach(t => {
@@ -153,22 +234,13 @@ const getStats = async (req, res) => {
       });
     }
 
-    // Employee Stats - Fixed N+1 Problem
-    const users = await prisma.user.findMany({
-      select: { id: true, username: true, name: true, role: true, counter: true, caterNew: true, caterRenewal: true, caterRetirement: true, autoAssign: true, profilePictureBase64: true, isOnline: true }
-    });
-
-    const employeeGroup = await prisma.ticket.groupBy({
-      by: ['servedByUserId', 'serviceId'],
-      where: { status: 'COMPLETED', servedByUserId: { not: null }, completedAt: { gte: startOfYear, lte: endOfYear } },
-      _count: { id: true }
-    });
-
-    const employeeAllTimeGroup = await prisma.ticket.groupBy({
-      by: ['servedByUserId'],
-      where: { status: 'COMPLETED', servedByUserId: { not: null } },
-      _count: { id: true }
-    });
+    const spark = { total: [], newApp: [], renewal: [], retirement: [] };
+    for (const counts of Object.values(sparkBuckets)) {
+      spark.total.push(counts.total);
+      spark.newApp.push(counts.newApp);
+      spark.renewal.push(counts.renewal);
+      spark.retirement.push(counts.retirement);
+    }
 
     const employeeMap = {};
     users.forEach(u => {
@@ -194,65 +266,8 @@ const getStats = async (req, res) => {
 
     const employeeStats = Object.values(employeeMap);
 
-    // ======================== ADVANCED ANALYTICS (period = trend date range) ========================
-
-    const [noShowCount, postponedCount] = await Promise.all([
-      prisma.ticket.count({
-        where: { status: 'NO_SHOW', servedAt: { gte: trendStart, lte: trendEnd } }
-      }),
-      prisma.ticket.count({
-        where: { status: 'POSTPONED', createdAt: { gte: trendStart, lte: trendEnd } }
-      })
-    ]);
-
-    const priorityGroupsDb = await prisma.priorityGroup.findMany();
     const priorityLabelMap = { REGULAR: 'Regular' };
     priorityGroupsDb.forEach(g => { priorityLabelMap[g.name] = g.label; });
-
-    let totalSkip = 0;
-    const priorityCounts = {};
-    const hourCounts = new Array(24).fill(0);
-    const dayCounts = new Array(7).fill(0);
-    const counterCounts = {};
-    
-    let totalWaitTimeMs = 0;
-    let waitTimeCount = 0;
-    let totalServiceTimeMs = 0;
-    let serviceTimeCount = 0;
-    let slaMetCount = 0;
-
-    trendTickets.forEach(t => {
-      totalSkip += t.skipCount || 0;
-      const p = t.priorityType || 'REGULAR';
-      priorityCounts[p] = (priorityCounts[p] || 0) + 1;
-      
-      if (t.completedAt) {
-        const d = new Date(t.completedAt);
-        hourCounts[d.getHours()]++;
-        dayCounts[d.getDay()]++;
-      }
-      
-      if (t.createdAt && t.servedAt) {
-        const waitMs = new Date(t.servedAt) - new Date(t.createdAt);
-        if (waitMs >= 0) {
-          totalWaitTimeMs += waitMs;
-          waitTimeCount++;
-          if (waitMs <= 15 * 60000) slaMetCount++;
-        }
-      }
-      
-      if (t.servedAt && t.completedAt) {
-        const serviceMs = new Date(t.completedAt) - new Date(t.servedAt);
-        if (serviceMs >= 0 && serviceMs <= 14400000) { // Ignore > 4hr anomalies
-          totalServiceTimeMs += serviceMs;
-          serviceTimeCount++;
-        }
-      }
-      
-      if (t.counter && t.counter.name) {
-        counterCounts[t.counter.name] = (counterCounts[t.counter.name] || 0) + 1;
-      }
-    });
 
     const avgSkipCount = trendTickets.length ? Math.round((totalSkip / trendTickets.length) * 10) / 10 : 0;
     const avgWaitTimeMins = waitTimeCount > 0 ? Math.round(totalWaitTimeMs / waitTimeCount / 60000) : 0;
@@ -280,24 +295,14 @@ const getStats = async (req, res) => {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Year-over-Year: same date range shifted back one year
-    const prevYearStart = new Date(trendStart);
-    prevYearStart.setFullYear(prevYearStart.getFullYear() - 1);
-    const prevYearEnd = new Date(trendEnd);
-    prevYearEnd.setFullYear(prevYearEnd.getFullYear() - 1);
-
-    const prevYearCount = await prisma.ticket.count({
-      where: { status: 'COMPLETED', completedAt: { gte: prevYearStart, lte: prevYearEnd } }
-    });
-
     const currentCount = trendTickets.length;
     const pctChange = prevYearCount > 0
       ? Math.round(((currentCount - prevYearCount) / prevYearCount) * 100)
       : (currentCount > 0 ? 100 : 0);
 
     const advanced = {
-      noShow: noShowCount,
-      postponed: postponedCount,
+      noShow: noShowTickets.length,
+      postponed: postponedTickets.length,
       avgSkipCount,
       avgWaitTimeMins,
       avgServiceTimeMins,
@@ -308,45 +313,6 @@ const getStats = async (req, res) => {
       slaAdherence,
       yoy: { current: currentCount, previous: prevYearCount, pctChange }
     };
-
-    // Sparkline data for KPI cards - daily counts over a rolling window ending at trendEnd
-    const sparkEnd = new Date(trendEnd);
-    const sparkStart = new Date(trendStart);
-    sparkStart.setHours(0, 0, 0, 0);
-
-    const sparkTickets = await prisma.ticket.findMany({
-      where: { status: 'COMPLETED', completedAt: { gte: sparkStart, lte: sparkEnd } },
-      select: { completedAt: true, serviceId: true }
-    });
-
-    const sparkBuckets = {};
-    let sparkDate = new Date(sparkStart);
-    while (sparkDate <= sparkEnd) {
-      const key = sparkDate.toDateString();
-      sparkBuckets[key] = { total: 0, newApp: 0, renewal: 0, retirement: 0 };
-      sparkDate.setDate(sparkDate.getDate() + 1);
-    }
-
-    sparkTickets.forEach(t => {
-      if (!t.completedAt) return;
-      const key = new Date(t.completedAt).toDateString();
-      if (sparkBuckets[key]) {
-        const bucket = sparkBuckets[key];
-        bucket.total++;
-        const slot = slotByServiceId[t.serviceId];
-        if (slot === 0) bucket.newApp++;
-        if (slot === 1) bucket.renewal++;
-        if (slot === 2) bucket.retirement++;
-      }
-    });
-
-    const spark = { total: [], newApp: [], renewal: [], retirement: [] };
-    for (const counts of Object.values(sparkBuckets)) {
-      spark.total.push(counts.total);
-      spark.newApp.push(counts.newApp);
-      spark.renewal.push(counts.renewal);
-      spark.retirement.push(counts.retirement);
-    }
 
     res.json({
       office: officeStats,
@@ -360,7 +326,6 @@ const getStats = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
-
 const getHistory = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -474,3 +439,12 @@ module.exports.getLiveFlow = getLiveFlow;
 
 
 
+const getStaffStatus = async (req, res) => {
+  try {
+    const activeStaff = await prisma.user.count({ where: { isOnline: true } });
+    res.json({ activeStaff });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+module.exports.getStaffStatus = getStaffStatus;

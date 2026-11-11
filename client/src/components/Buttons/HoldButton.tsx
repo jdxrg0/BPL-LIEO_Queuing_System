@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface ColorMap {
   bg: string;
@@ -17,27 +18,25 @@ interface HoldButtonProps {
 export default function HoldButton({ onClick, icon, colorMap, tooltip, holdTime = 500 }: HoldButtonProps) {
   const [isHolding, setIsHolding] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const startHold = (e: React.MouseEvent | React.TouchEvent) => {
-    // Only allow left click if it's a mouse event
     if ('button' in e && e.button !== 0) return;
-    
-    // Allow preventDefault for both MouseEvent and TouchEvent if needed, but TypeScript might complain about TouchEvent in some strict configs. 
-    // Usually it's fine since React SyntheticEvents have preventDefault.
     if (e.cancelable) e.preventDefault(); 
-    
-    if (isSuccess) return; // Block interactions while showing success
+    if (isSuccess || isLoading) return; 
     
     setIsHolding(true);
     timerRef.current = setTimeout(async () => {
       setIsHolding(false);
+      setIsLoading(true);
       try {
         await onClick();
-        // Show success animation
+        setIsLoading(false);
         setIsSuccess(true);
         setTimeout(() => setIsSuccess(false), 1200);
       } catch (err) {
+        setIsLoading(false);
         console.error("HoldButton error:", err);
       }
     }, holdTime);
@@ -51,7 +50,6 @@ export default function HoldButton({ onClick, icon, colorMap, tooltip, holdTime 
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => cancelHold();
   }, []);
@@ -60,38 +58,40 @@ export default function HoldButton({ onClick, icon, colorMap, tooltip, holdTime 
   const strokeWidth = 2.5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = isHolding ? 0 : circumference;
 
   return (
-    <div 
-      style={{ 
-        position: 'relative', width: size, height: size, cursor: isSuccess ? 'default' : 'pointer',
-        transform: isHolding ? 'scale(0.92)' : (isSuccess ? 'scale(1.1)' : 'scale(1)'),
-        transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        borderRadius: '50%'
-      }}
+    <motion.div 
       title={tooltip}
       onMouseDown={startHold}
       onMouseUp={cancelHold}
       onMouseLeave={cancelHold}
       onTouchStart={startHold}
       onTouchEnd={cancelHold}
+      whileTap={(isSuccess || isLoading) ? {} : { scale: 0.85 }}
+      animate={{ scale: isSuccess ? 1.15 : (isLoading ? 0.95 : 1) }}
+      transition={{ type: "spring", stiffness: 450, damping: 20 }}
+      style={{ 
+        position: 'relative', width: size, height: size, cursor: (isSuccess || isLoading) ? 'default' : 'pointer',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        borderRadius: '50%',
+        opacity: isLoading ? 0.7 : 1
+      }}
     >
       <svg width={size} height={size} style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
         {/* Background circle */}
-        <circle 
+        <motion.circle 
           cx={size / 2} 
           cy={size / 2} 
           r={radius} 
-          fill={isSuccess ? colorMap.main : colorMap.bg}
-          stroke={isSuccess ? colorMap.main : colorMap.bg} 
+          animate={{
+            fill: isSuccess ? colorMap.main : colorMap.bg,
+            stroke: isSuccess ? colorMap.main : colorMap.bg
+          }}
           strokeWidth={strokeWidth} 
-          style={{ transition: 'fill 0.3s ease, stroke 0.3s ease' }}
         />
         {/* Animated Progress Border */}
-        <circle 
+        <motion.circle 
           cx={size / 2} 
           cy={size / 2} 
           r={radius} 
@@ -99,26 +99,30 @@ export default function HoldButton({ onClick, icon, colorMap, tooltip, holdTime 
           stroke={colorMap.main} 
           strokeWidth={strokeWidth} 
           strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          style={{ 
-            transition: isHolding ? `stroke-dashoffset ${holdTime}ms linear` : 'stroke-dashoffset 0.3s ease-out',
-            opacity: isSuccess ? 0 : 1
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ 
+            strokeDashoffset: isHolding ? 0 : (isLoading ? 0 : circumference),
+            opacity: isSuccess ? 0 : (isLoading ? 0.5 : 1) 
           }}
+          transition={{ 
+            strokeDashoffset: isHolding ? { duration: holdTime / 1000, ease: "linear" } : { duration: 0.25, ease: "easeOut" },
+            opacity: { duration: 0.2 }
+          }}
+          strokeLinecap="round"
         />
       </svg>
       
       {/* Icon Container */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, width: '100%', height: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: isSuccess ? 'white' : colorMap.main,
-        zIndex: 1,
-        transition: 'color 0.3s ease'
-      }}>
-        {isSuccess ? <Check size={14} strokeWidth={3} /> : icon}
-      </div>
-    </div>
+      <motion.div 
+        animate={{ color: (isSuccess || isLoading) ? 'white' : colorMap.main }}
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, width: '100%', height: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1,
+        }}>
+        {isLoading ? <Loader2 size={14} className="animate-spin" /> : (isSuccess ? <Check size={14} strokeWidth={3} /> : icon)}
+      </motion.div>
+    </motion.div>
   );
 }

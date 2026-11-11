@@ -1,0 +1,195 @@
+<mxfile host="app.diagrams.net" modified="2026-10-11T20:30:00.000Z" agent="Antigravity" version="24.0.0" type="device">
+  <diagram id="bpl-lieo-erd" name="BPL-LIEO Entity-Relationship Diagram (ERD)">
+    <mxGraphModel dx="1650" dy="1150" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="1150" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="erd_title" value="BPL-LIEO Queue Management System&#xa;Entity-Relationship Diagram (ERD)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="425" y="20" width="800" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 1. SERVICE TABLE (Left Top) ==================== -->
+        <mxCell id="tbl_service" value="Service" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="90" y="120" width="320" height="162" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_pk" value="PK  id : Int (AutoIncrement)" style="text;strokeColor=#6c8ebf;fillColor=#f5f9ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_service">
+          <mxGeometry y="32" width="320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="srv_cols" value="      name : String (&quot;New Application&quot;, &quot;Renewal&quot;, &quot;Retirement&quot;)&#xa;      prefix : String (&quot;NW&quot;, &quot;RNW&quot;, &quot;R&quot;)&#xa;      description : String?&#xa;      isActive : Boolean (default: true)" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_service">
+          <mxGeometry y="62" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 2. TICKET_COUNTER TABLE (Left Middle) ==================== -->
+        <mxCell id="tbl_ticketcounter" value="TicketCounter" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="90" y="380" width="320" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="tc_pk" value="PK, FK  serviceId : Int&#xa;PK        date : String (&quot;MMDDYY&quot;)" style="text;strokeColor=#6c8ebf;fillColor=#f5f9ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_ticketcounter">
+          <mxGeometry y="32" width="320" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="tc_cols" value="            seq : Int (default: 0)" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_ticketcounter">
+          <mxGeometry y="82" width="320" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 3. PRIORITY_GROUP TABLE (Left Bottom) ==================== -->
+        <mxCell id="tbl_priority" value="PriorityGroup" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="90" y="600" width="320" height="202" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_pk" value="PK  id : Int (AutoIncrement)" style="text;strokeColor=#9673a6;fillColor=#faf5ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_priority">
+          <mxGeometry y="32" width="320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="pg_cols" value="UQ  name : String (&quot;PWD&quot;, &quot;SENIOR&quot;, &quot;PREGNANT&quot;, &quot;RETURNING&quot;)&#xa;      label : String&#xa;      shortLabel : String?&#xa;      weight : Int (default: 1)&#xa;      slaThreshold : Int?&#xa;      isActive : Boolean (default: true)" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_priority">
+          <mxGeometry y="62" width="320" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 4. TICKET TABLE (Center Main) ==================== -->
+        <mxCell id="tbl_ticket" value="Ticket" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2.5;fontSize=15;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="620" y="190" width="360" height="402" as="geometry" />
+        </mxCell>
+        <mxCell id="tkt_pk" value="PK  id : Int (AutoIncrement)" style="text;strokeColor=#82b366;fillColor=#f2fbf0;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_ticket">
+          <mxGeometry y="32" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tkt_fk" value="FK  serviceId : Int&#xa;FK  counterId : Int?&#xa;FK  createdByUserId : Int?&#xa;FK  servedByUserId : Int?" style="text;strokeColor=#82b366;fillColor=#f9fdf8;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_ticket">
+          <mxGeometry y="62" width="360" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tkt_cols" value="      number : String (e.g., &quot;NW-101126-001&quot;)&#xa;      status : String (&quot;WAITING&quot;, &quot;SERVING&quot;, &quot;COMPLETED&quot;,&#xa;                               &quot;POSTPONED&quot;, &quot;NO_SHOW&quot;)&#xa;      priorityType : String (default: &quot;REGULAR&quot;)&#xa;      skipCount : Int (default: 0)&#xa;      estimatedWaitMins : Int?&#xa;      phoneNumber : String? (SMS Alert Number)&#xa;      pushSubscription : String? (Web Push JSON)&#xa;      createdAt : DateTime (default: now())&#xa;      servedAt : DateTime?&#xa;      completedAt : DateTime?" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=8;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_ticket">
+          <mxGeometry y="142" width="360" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 5. QUEUE_AUDIT TABLE (Center Bottom) ==================== -->
+        <mxCell id="tbl_audit" value="QueueAudit" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="620" y="720" width="360" height="222" as="geometry" />
+        </mxCell>
+        <mxCell id="aud_pk" value="PK  id : String (UUID)" style="text;strokeColor=#d6b656;fillColor=#fffdf5;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_audit">
+          <mxGeometry y="32" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aud_fk" value="FK  ticketId : Int (onDelete: Cascade)" style="text;strokeColor=#d6b656;fillColor=#fffef9;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_audit">
+          <mxGeometry y="62" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aud_cols" value="      fromStatus : String?&#xa;      toStatus : String&#xa;      performedBy : String? (Actor User ID)&#xa;      windowNumber : Int? (Counter ID)&#xa;      note : String?&#xa;      createdAt : DateTime (default: now())" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_audit">
+          <mxGeometry y="92" width="360" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 6. COUNTER TABLE (Right Top) ==================== -->
+        <mxCell id="tbl_counter" value="Counter" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="100" width="340" height="122" as="geometry" />
+        </mxCell>
+        <mxCell id="cnt_pk" value="PK  id : Int (AutoIncrement)" style="text;strokeColor=#6c8ebf;fillColor=#f5f9ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_counter">
+          <mxGeometry y="32" width="340" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cnt_cols" value="      name : String (&quot;Counter 1&quot;, &quot;Window A&quot;)&#xa;      isActive : Boolean (default: true)" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_counter">
+          <mxGeometry y="62" width="340" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 7. USER TABLE (Right Middle) ==================== -->
+        <mxCell id="tbl_user" value="User" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="320" width="340" height="342" as="geometry" />
+        </mxCell>
+        <mxCell id="usr_pk" value="PK  id : Int (AutoIncrement)" style="text;strokeColor=#6c8ebf;fillColor=#f5f9ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_user">
+          <mxGeometry y="32" width="340" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="usr_fk" value="FK  counterId : Int?" style="text;strokeColor=#6c8ebf;fillColor=#f9fbff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=2;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_user">
+          <mxGeometry y="62" width="340" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="usr_cols" value="UQ  username : String&#xa;      passwordHash : String (bcrypt)&#xa;      name : String&#xa;      role : String (&quot;ADMIN&quot; | &quot;STAFF&quot;)&#xa;      caterNew : Boolean (default: true)&#xa;      caterRenewal : Boolean (default: true)&#xa;      caterRetirement : Boolean (default: true)&#xa;      autoAssign : Boolean (default: true)&#xa;      isOnline : Boolean (default: false)&#xa;      profilePictureBase64 : String?&#xa;      createdAt : DateTime (default: now())" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_user">
+          <mxGeometry y="90" width="340" height="252" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== 8. SETTINGS TABLE (Right Bottom) ==================== -->
+        <mxCell id="tbl_settings" value="Settings (Global Configuration)" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=32;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=14;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="720" width="340" height="332" as="geometry" />
+        </mxCell>
+        <mxCell id="set_pk" value="PK  id : Int (default: 1)" style="text;strokeColor=#9673a6;fillColor=#faf5ff;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontStyle=1;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_settings">
+          <mxGeometry y="32" width="340" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="set_cols" value="      websiteName : String&#xa;      logoBase64 : String?&#xa;      autoAdaptive : Boolean (default: false)&#xa;      autoBalanceMode : String (&quot;peace&quot; | &quot;crunch&quot;)&#xa;      autoBalanceThreshold : Int (default: 15)&#xa;      slaThreshold : Int (default: 15)&#xa;      zipperRatio : Int (default: 3)&#xa;      agingRate : Float (default: 0.1)&#xa;      skipLimit : Int (default: 5)&#xa;      ticketHeaderText / ticketFooterText : String&#xa;      showWaitTimeOnTicket : Boolean (default: true)&#xa;      enableVoiceCall / enableChime : Boolean&#xa;      displayTickerText : String" style="text;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=10;spacingRight=4;spacingTop=6;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=12;fontFamily=Arial;" vertex="1" parent="tbl_settings">
+          <mxGeometry y="62" width="340" height="270" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== LEGEND BOX (Bottom Left) ==================== -->
+        <mxCell id="erd_legend" value="ERD Legend&#xa;──────────────────────────────&#xa;PK   Primary Key&#xa;FK   Foreign Key&#xa;UQ  Unique Constraint&#xa;───  Enforced Relational FK (1:N / 0..1:N)&#xa;- - -  Logical / Algorithmic Reference" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;spacingLeft=14;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;strokeWidth=1.5;fontSize=12;fontStyle=1;fontFamily=Arial;" vertex="1" parent="1">
+          <mxGeometry x="90" y="880" width="320" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== RELATIONSHIPS (CROW'S FOOT) ==================== -->
+
+        <!-- 1. Service (1) -> (0..N) Ticket -->
+        <mxCell id="rel_srv_tkt" value="categorizes (1:N)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_service" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="200" />
+              <mxPoint x="510" y="265" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 2. Service (1) -> (0..N) TicketCounter -->
+        <mxCell id="rel_srv_tc" value="tracks daily sequence (1:N)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_service" target="tbl_ticketcounter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 3. PriorityGroup (1) - - > (0..N) Ticket (Logical via priorityType) -->
+        <mxCell id="rel_pg_tkt" value="assigns weight &amp; SLA to&#xa;(priorityType = name)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;startArrow=ERmandOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.5;strokeColor=#9673a6;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_priority" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="700" />
+              <mxPoint x="510" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 4. Ticket (1) -> (0..N) QueueAudit -->
+        <mxCell id="rel_tkt_aud" value="logs transitions in (1:N)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_ticket" target="tbl_audit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 5. Counter (0..1) -> (0..N) User -->
+        <mxCell id="rel_cnt_usr" value="manned by (0..1 : N)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_counter" target="tbl_user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 6. Counter (0..1) -> (0..N) Ticket -->
+        <mxCell id="rel_cnt_tkt" value="serves at window (0..1 : N)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_counter" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1080" y="160" />
+              <mxPoint x="1080" y="265" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 7. User (0..1) -> (0..N) Ticket (TicketCreator) -->
+        <mxCell id="rel_usr_tkt_create" value="creates (createdByUserId)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_user" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1090" y="420" />
+              <mxPoint x="1090" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 8. User (0..1) -> (0..N) Ticket (TicketServer) -->
+        <mxCell id="rel_usr_tkt_serve" value="processes / serves (servedByUserId)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_user" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1090" y="510" />
+              <mxPoint x="1090" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. Settings - - > Ticket / Smart Queue Engine (Logical Config) -->
+        <mxCell id="rel_set_tkt" value="governs S(t), E[W] &amp; Auto-Balance thresholds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;startArrow=ERmandOne;startFill=0;endArrow=open;endFill=0;strokeWidth=1.5;strokeColor=#9673a6;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tbl_settings" target="tbl_ticket">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1090" y="800" />
+              <mxPoint x="1090" y="550" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

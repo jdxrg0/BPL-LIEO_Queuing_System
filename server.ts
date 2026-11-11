@@ -1,4 +1,3 @@
-const logger = require('./server/utils/logger');
 export {};
 require('dotenv').config();
 const express = require('express');
@@ -24,15 +23,18 @@ const { apiLimiter } = require('./server/middlewares/rateLimit.middleware');
 
 // --- Robust Error Handling ---
 process.on('uncaughtException', (err) => {
-  logger.error('CRITICAL ERROR: Uncaught Exception:', err);
+  console.error('CRITICAL ERROR: Uncaught Exception:', err);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('CRITICAL ERROR: Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('CRITICAL ERROR: Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const app = express();
 const server = http.createServer(app);
+
+// Simple Health Check
+app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // Allowed origins: Vite dev server and production CLIENT_URL
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'];
@@ -52,17 +54,6 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 // Mount Routes
-// Health Check Endpoint
-app.get('/api/health', async (req, res) => {
-  try {
-    // Check DB connection
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ status: 'ok', db: 'connected', timestamp: new Date() });
-  } catch (error) {
-    res.status(503).json({ status: 'error', db: 'disconnected', timestamp: new Date() });
-  }
-});
-
 app.use('/api', authRoutes); 
 app.use('/api', apiLimiter);
 app.use('/api/users', verifyToken, userRoutes);
@@ -83,7 +74,7 @@ const activeSockets = new Map(); // userId -> Set of socket.ids
 
 // Socket.io Event Listeners
 io.on('connection', (socket: any) => {
-  logger.info('Client connected:', socket.id);
+  console.log('Client connected:', socket.id);
   
   // Track userId when client identifies itself
   socket.on('identify', async (userId: string | number) => {
@@ -126,13 +117,13 @@ io.on('connection', (socket: any) => {
         });
         io.emit('userOnlineStatus', { userId: parseInt(uidStr), isOnline: true });
       } catch(e) {
-        logger.error('Error updating online status:', e);
+        console.error('Error updating online status:', e);
       }
     }
   });
 
   socket.on('disconnect', async () => {
-    logger.info('Client disconnected:', socket.id);
+    console.log('Client disconnected:', socket.id);
     if (socket.userId) {
       const uidStr = String(socket.userId);
       const sockets = activeSockets.get(uidStr);
@@ -148,7 +139,7 @@ io.on('connection', (socket: any) => {
             });
             io.emit('userOnlineStatus', { userId: parseInt(uidStr), isOnline: false });
           } catch(e) {
-            logger.error('Error updating offline status:', e);
+            console.error('Error updating offline status:', e);
           }
         }
       }
@@ -160,9 +151,7 @@ io.on('connection', (socket: any) => {
 setInterval(() => autoBalanceCounters(), 5 * 60 * 1000);
 
 // Start Server
-// Default port is 5000 — matches the Vite dev proxy (vite.config.js) and BAT launchers.
-// Override by setting PORT= in your .env file.
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 const { initAutomatedBackups } = require('./server/utils/dbBackup');
 initAutomatedBackups();
@@ -170,17 +159,19 @@ initAutomatedBackups();
 async function startServer() {
   // Reset all users' online status on startup before accepting connections
   try {
-
+    try {
+      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN "isOnline" BOOLEAN NOT NULL DEFAULT 0;');
+    } catch (e) {}
     await prisma.user.updateMany({
       data: { isOnline: false }
     });
-    logger.info('Reset all user online status on startup');
+    console.log('Reset all user online status on startup');
   } catch (err: any) {
     console.warn('Could not reset user online status on startup:', err.message);
   }
 
   server.listen(PORT, async () => {
-    logger.info(`Server listening on port ${PORT}`);
+    console.log(`Server listening on port ${PORT}`);
     try {
       await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
     } catch (err: any) {
@@ -202,32 +193,32 @@ let isShuttingDown = false;
 const cleanup = async (signal: string) => {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  logger.info(`\n[Graceful Shutdown] Received ${signal || 'kill signal'}, shutting down safely...`);
+  console.log(`\n[Graceful Shutdown] Received ${signal || 'kill signal'}, shutting down safely...`);
   
   if (io) {
     io.close(() => {
-      logger.info('[Graceful Shutdown] Socket.io closed.');
+      console.log('[Graceful Shutdown] Socket.io closed.');
     });
   }
 
   server.close(async () => {
-    logger.info('[Graceful Shutdown] HTTP server closed.');
+    console.log('[Graceful Shutdown] HTTP server closed.');
     try {
       await prisma.$disconnect();
-      logger.info('[Graceful Shutdown] Database disconnected.');
+      console.log('[Graceful Shutdown] Database disconnected.');
       if (signal === 'SIGUSR2') {
         process.kill(process.pid, 'SIGUSR2');
       } else {
         process.exit(0);
       }
     } catch (err) {
-      logger.error('[Graceful Shutdown] Error during database disconnect:', err);
+      console.error('[Graceful Shutdown] Error during database disconnect:', err);
       process.exit(1);
     }
   });
 
   setTimeout(() => {
-    logger.error('[Graceful Shutdown] Could not close connections in time, forcefully shutting down');
+    console.error('[Graceful Shutdown] Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 };
@@ -237,5 +228,3 @@ process.on('SIGINT', () => cleanup('SIGINT'));
 process.once('SIGUSR2', () => cleanup('SIGUSR2'));
 
 module.exports = { app, server, io };
-
-

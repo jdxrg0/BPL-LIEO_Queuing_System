@@ -1,11 +1,8 @@
-// @ts-nocheck
-export {};
-const logger = require('../utils/logger');
 export {};
 const prisma = require('../config/db');
 const socketConfig = require('../config/socket');
 const { scheduleAutoBalance } = require('./meta.controller');
-const { syncTicket, syncQueueState, removeTicket, getDb } = require('../services/cloudSync.service');
+const { syncTicket, removeTicket, getDb } = require('../services/cloudSync.service');
 const { buildServiceFlagMap, getActiveServices } = require('../utils/serviceFlagMap');
 const { logAudit } = require('../utils/auditLog');
 
@@ -34,6 +31,24 @@ webpush.setVapidDetails(
 
 const { calculateSmartScores, calculatePredictiveWaitTime } = require('../utils/smartQueueEngine');
 const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../utils/capacityTracker');
+
+// Helper to fetch the exact recent tickets per service required for accurate Zipper Force calculations
+const getRecentTicketsPerService = async (waitingTickets, zipperRatio) => {
+  const distinctServiceIds = [...new Set(waitingTickets.map(t => t.serviceId))];
+  const promises = distinctServiceIds.map(svcId => 
+    prisma.ticket.findMany({
+      where: { 
+        serviceId: svcId,
+        status: { in: ['COMPLETED', 'SERVING'] }, 
+        servedAt: { not: null } 
+      },
+      orderBy: { servedAt: 'desc' },
+      take: zipperRatio || 3
+    })
+  );
+  const arrays = await Promise.all(promises);
+  return arrays.flat();
+};
 
 const notifyApproachingTickets = async (serviceId) => {
   try {
@@ -105,19 +120,22 @@ const notifyApproachingTickets = async (serviceId) => {
             });
           }
         } catch (err) {
-          logger.error(`Push failed for ticket ${ticket.number}:`, err);
+          console.error(`Push failed for ticket ${ticket.number}:`, err);
         }
       }
     }
   } catch (error) {
-    logger.error('Error notifying approaching tickets:', error);
+    console.error('Error notifying approaching tickets:', error);
   }
 };
 
 const getWaitingTickets = async (req, res) => {
   try {
     let tickets = await prisma.ticket.findMany({
-      where: { status: 'WAITING' },
+      where: { 
+        status: 'WAITING',
+        service: { isActive: true } 
+      },
       include: { service: true },
       orderBy: { createdAt: 'asc' }
     });
@@ -126,11 +144,7 @@ const getWaitingTickets = async (req, res) => {
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
       autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
-    const recentTickets = await prisma.ticket.findMany({
-      where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
-      orderBy: { servedAt: 'desc' },
-      take: 100
-    });
+    const recentTickets = await getRecentTicketsPerService(tickets, settings.zipperRatio);
 
     const { calculateSmartScores } = require('../utils/smartQueueEngine');
     tickets = calculateSmartScores(tickets, priorityGroups, settings, recentTickets);
@@ -157,8 +171,9 @@ const getRecentCalled = async (req, res) => {
 const getDisplayTickets = async (req, res) => {
   try {
     const tickets = await prisma.ticket.findMany({
-      where: {
-        status: { in: ['WAITING', 'SERVING'] }
+      where: { 
+        status: { in: ['WAITING', 'SERVING'] },
+        service: { isActive: true }
       },
       select: {
         id: true,
@@ -196,11 +211,7 @@ const getDisplayTickets = async (req, res) => {
       const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
         autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
       };
-      const recentTickets = await prisma.ticket.findMany({
-        where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
-        orderBy: { servedAt: 'desc' },
-        take: 100
-      });
+      const recentTickets = await getRecentTicketsPerService(waitingTickets, settings.zipperRatio);
 
       const { calculateSmartScores } = require('../utils/smartQueueEngine');
       const { getActiveStaffProfiles, getDynamicAverageServiceTime } = require('../utils/capacityTracker');
@@ -401,7 +412,7 @@ const deleteTicket = async (req, res) => {
     
     res.json({ success: true });
   } catch (err) {
-    logger.error(err);
+    console.error(err);
     res.status(500).json({ error: 'Failed to delete ticket' });
   }
 };
@@ -428,7 +439,7 @@ const callTicket = async (req, res) => {
     // Enforce the auto-allocation server-side: non-admins may only start serving
     // tickets from queues they are allocated to (via their cater flag). Recalls of
     // an already-serving ticket and admin override are exempt.
-    if (!isRecall && caller.role !== 'ADMIN') {
+    if (!isRecall) {
       if (servedByUserId !== undefined && servedByUserId !== null && Number(servedByUserId) !== caller.id) {
         return res.status(403).json({ error: 'You can only call tickets for yourself.' });
       }
@@ -511,7 +522,7 @@ const callTicket = async (req, res) => {
         await webpush.sendNotification(sub, JSON.stringify({
           title: 'It is your turn!',
           body: `${prefix}Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`,
-          url: `/?ticket=${ticket.number}`,
+          url: `/tracker?ticket=${ticket.number}`,
           ticketNumber: ticket.number
         }));
         
@@ -523,7 +534,7 @@ const callTicket = async (req, res) => {
         await sendSMS(existingTicket.phoneNumber, `BPLO Rosario: ${prefix}Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`);
       }
     } catch (err) {
-      logger.error(`Push/SMS failed for called ticket ${ticket.number}:`, err);
+      console.error(`Push/SMS failed for called ticket ${ticket.number}:`, err);
     }
 
     // Sync to Cloud (Non-blocking) - this updates Firebase's updatedAt timestamp
@@ -641,7 +652,7 @@ const trackTicket = async (req, res) => {
 
     res.json({ ticket, trueRank, estimatedWaitMins });
   } catch (error) {
-    logger.error('Error tracking ticket:', error);
+    console.error('Error tracking ticket:', error);
     res.status(500).json({ error: 'Failed to track ticket' });
   }
 };
@@ -692,7 +703,7 @@ const subscribeToPush = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Error saving subscription:', error);
+    console.error('Error saving subscription:', error);
     res.status(500).json({ error: 'Failed to save subscription' });
   }
 };
@@ -723,7 +734,7 @@ const subscribeToSMS = async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    logger.error('Error saving SMS subscription:', error);
+    console.error('Error saving SMS subscription:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -750,61 +761,114 @@ const autoAssignNext = async (req, res) => {
     const { flagByPrefix } = buildServiceFlagMap(activeServices);
     
     const allowedPrefixes: string[] = [];
-    if (caller.role === 'ADMIN') {
-      allowedPrefixes.push(...Object.keys(flagByPrefix));
-    } else {
-      for (const prefix in flagByPrefix) {
-        if (caller[flagByPrefix[prefix]]) {
-          allowedPrefixes.push(prefix);
-        }
+    const allowedServiceNames: string[] = [];
+    for (const prefix in flagByPrefix) {
+      if (caller[flagByPrefix[prefix]]) {
+        allowedPrefixes.push(prefix);
+        const svc = activeServices.find(s => s.prefix === prefix);
+        if (svc) allowedServiceNames.push(svc.name);
       }
     }
 
-    // 1. Fetch ALL waiting tickets that match the staff's capabilities
-    const waitingTickets = await prisma.ticket.findMany({
-      where: {
-        status: 'WAITING',
-        service: {
-          prefix: { in: allowedPrefixes }
-        }
-      },
-      include: { service: true }
-    });
-
-    if (!waitingTickets || waitingTickets.length === 0) {
-      return res.status(404).json({ error: 'No tickets available for your capabilities.' });
+    if (allowedPrefixes.length === 0) {
+      return res.status(400).json({ error: 'You are not assigned to cater to any services.' });
     }
 
-    // 2. Pass them through the Smart Queue Engine to pick the best one
+    let ticket: any = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    let bestTicket: any = null;
+
     const priorityGroups = await prisma.priorityGroup.findMany();
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
       autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
-    const recentTickets = await prisma.ticket.findMany({
-      where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
-      orderBy: { servedAt: 'desc' },
-      take: 100
-    });
-
     const { calculateSmartScores } = require('../utils/smartQueueEngine');
-    const scoredTickets = calculateSmartScores(waitingTickets, priorityGroups, settings, recentTickets);
-    const bestTicket = scoredTickets.length > 0 ? scoredTickets[0] : null;
 
-    if (!bestTicket) {
-      return res.status(404).json({ error: 'No valid tickets found.' });
+    while (!ticket && attempts < maxAttempts) {
+      attempts++;
+
+      // 1. Fetch ALL waiting tickets that match the staff's capabilities
+      const waitingTickets = await prisma.ticket.findMany({
+        where: {
+          status: 'WAITING',
+          service: {
+            prefix: { in: allowedPrefixes },
+            isActive: true
+          }
+        },
+        include: { service: true }
+      });
+
+      if (!waitingTickets || waitingTickets.length === 0) {
+        // UI Polish: Tell the staff WHY no tickets are found, matching the visible active tickets
+        const anyWaitingTickets = await prisma.ticket.count({ 
+          where: { 
+            status: 'WAITING',
+            service: { isActive: true } 
+          } 
+        });
+        if (anyWaitingTickets > 0) {
+          return res.status(404).json({ 
+            error: `There are ${anyWaitingTickets} people waiting, but none for your assigned services (${allowedServiceNames.join(', ')}).` 
+          });
+        }
+        return res.status(404).json({ error: 'No tickets currently waiting in the queue.' });
+      }
+
+      // 2. Fetch recent tickets per service to guarantee Zipper Force accuracy
+      const distinctServiceIds = [...new Set(waitingTickets.map((t: any) => t.serviceId))];
+      const recentTicketsPromises = distinctServiceIds.map((svcId) => 
+        prisma.ticket.findMany({
+          where: { 
+            serviceId: svcId as number,
+            status: { in: ['COMPLETED', 'SERVING'] }, 
+            servedAt: { not: null } 
+          },
+          orderBy: { servedAt: 'desc' },
+          take: settings.zipperRatio || 3
+        })
+      );
+      
+      const recentTicketsArrays = await Promise.all(recentTicketsPromises);
+      const recentTickets = recentTicketsArrays.flat();
+
+      const scoredTickets = calculateSmartScores(waitingTickets, priorityGroups, settings, recentTickets);
+      bestTicket = scoredTickets.length > 0 ? scoredTickets[0] : null;
+
+      if (!bestTicket) {
+        return res.status(404).json({ error: 'No valid tickets found after scoring.' });
+      }
+
+      // 3. ATOMIC CLAIM: Update ONLY if the ticket is still WAITING
+      const claimResult = await prisma.ticket.updateMany({
+        where: { 
+          id: bestTicket.id, 
+          status: 'WAITING' 
+        },
+        data: {
+          status: 'SERVING',
+          counterId,
+          servedByUserId: userId,
+          servedAt: new Date()
+        }
+      });
+
+      if (claimResult.count === 1) {
+        // Success! We successfully claimed the ticket.
+        ticket = await prisma.ticket.findUnique({
+          where: { id: bestTicket.id },
+          include: { counter: true, service: true }
+        });
+        break; // Exit the loop
+      }
+      
+      // If count is 0, another counter grabbed it right before us. The loop will retry.
     }
 
-    // 3. Use the returned ticket for assignment
-    const ticket = await prisma.ticket.update({
-      where: { id: bestTicket.id },
-      data: {
-        status: 'SERVING',
-        counterId,
-        servedByUserId: userId,
-        servedAt: new Date()
-      },
-      include: { counter: true, service: true }
-    });
+    if (!ticket || !bestTicket) {
+      return res.status(409).json({ error: 'High traffic: The system tried to assign a ticket but it was grabbed by another window. Please click call again.' });
+    }
 
     await logAudit({
       ticketId: ticket.id,
@@ -863,12 +927,12 @@ const autoAssignNext = async (req, res) => {
         await sendSMS(bestTicket.phoneNumber, `BPLO Rosario: Your ticket ${ticket.number} has been called. Please proceed to Counter ${counterId}.`);
       }
     } catch (err) {
-      logger.error(`Push/SMS failed for auto-assigned ticket ${ticket.number}:`, err);
+      console.error(`Push/SMS failed for auto-assigned ticket ${ticket.number}:`, err);
     }
 
     res.json(ticket);
   } catch (error) {
-    logger.error('Error in autoAssignNext:', error);
+    console.error('Error in autoAssignNext:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -927,7 +991,7 @@ const getTickets = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error fetching tickets:', error);
+    console.error('Error fetching tickets:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -943,15 +1007,17 @@ const bulkCreateTickets = async (req, res) => {
       return res.status(400).json({ error: 'Tickets array is required' });
     }
 
+    // Filter out invalid entries (missing number or serviceId)
+    const validTickets = tickets.filter(t => t && typeof t.number === 'string' && t.number.trim() !== '' && t.serviceId);
     // Filter out tickets that already exist
-    const numbers = tickets.map(t => t.number);
+    const numbers = validTickets.map(t => t.number);
     const existing = await prisma.ticket.findMany({
       where: { number: { in: numbers } },
       select: { number: true }
     });
     const existingNumbers = new Set(existing.map(t => t.number));
 
-    const toInsert = tickets
+    const toInsert = validTickets
       .filter(t => !existingNumbers.has(t.number))
       .map(t => ({
         number: t.number,
@@ -970,51 +1036,12 @@ const bulkCreateTickets = async (req, res) => {
     res.status(201).json({ 
       success: true, 
       created: toInsert.length,
-      skipped: tickets.length - toInsert.length
+      skipped: tickets.length - toInsert.length,
+      invalid: tickets.length - validTickets.length
     });
   } catch (error) {
-    logger.error('Error in bulkCreateTickets:', error);
+    console.error('Error in bulkCreateTickets:', error);
     res.status(500).json({ error: 'Server error bulk creating tickets' });
-  }
-};
-
-const checkInTicket = async (req, res) => {
-  try {
-    const { number } = req.params;
-    
-    // Find the unissued ticket
-    const ticket = await prisma.ticket.findFirst({
-      where: { number, status: 'UNISSUED' }
-    });
-
-    if (!ticket) {
-      return res.status(404).json({ error: 'UNISSUED ticket not found or already checked in' });
-    }
-
-    // Update to WAITING and reset createdAt so wait time starts *now*
-    const updated = await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: {
-        status: 'WAITING',
-        createdAt: new Date()
-      },
-      include: { service: true }
-    });
-
-    const io = require('../config/socket').getIo();
-    if (io) {
-      io.emit('queueUpdated');
-      io.emit('ticketCreated', updated);
-    }
-
-    // Sync to Firebase
-    syncTicket(updated).catch(err => logger.error('Firebase sync failed on check-in:', err));
-    syncQueueState(updated.serviceId).catch(err => logger.error('Firebase queue state sync failed:', err));
-
-    res.json(updated);
-  } catch (error) {
-    logger.error('Error in checkInTicket:', error);
-    res.status(500).json({ error: 'Server error checking in ticket' });
   }
 };
 
@@ -1025,7 +1052,6 @@ exports.exportTickets = async (req, res) => {
     const tickets = await prisma.ticket.findMany({
       include: {
         service: true,
-        // Note: priorityType is a plain string on Ticket, not a relation.
         createdByUser: { select: { id: true, name: true, role: true } },
         servedByUser: { select: { id: true, name: true, role: true } },
         counter: true
@@ -1035,13 +1061,12 @@ exports.exportTickets = async (req, res) => {
     
     // Build CSV
     const headers = [
-      'Ticket Number', 'Status', 'Service', 'Priority Type', 
+      'Ticket Number', 'Status', 'Service', 'Priority Group', 
       'Created At', 'Called At', 'Completed At', 
       'Created By', 'Served By', 'Counter', 'Wait Time (mins)', 'Service Time (mins)'
     ];
 
     const rows = tickets.map(t => {
-      // servedAt = when the ticket was called (SERVING), completedAt = when finished
       const waitTime = t.servedAt ? Math.round((new Date(t.servedAt).getTime() - new Date(t.createdAt).getTime()) / 60000) : '';
       const serviceTime = (t.servedAt && t.completedAt) ? Math.round((new Date(t.completedAt).getTime() - new Date(t.servedAt).getTime()) / 60000) : '';
       return [
@@ -1066,11 +1091,58 @@ exports.exportTickets = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=tickets_export.csv`);
     res.send(csv);
   } catch (error) {
-    logger.error('Failed to export tickets:', error);
+    console.error('Failed to export tickets:', error);
     res.status(500).json({ error: 'Failed to export tickets' });
   }
 };
 
+const checkInTicket = async (req, res) => {
+  try {
+    const { number } = req.params;
+    const { priorityType = 'REGULAR' } = req.body;
+    
+    const existingUnissued = await prisma.ticket.findFirst({
+      where: { number, status: 'UNISSUED' },
+      include: { service: true }
+    });
+
+    if (!existingUnissued) {
+      return res.status(404).json({ error: 'Unissued ticket not found or already checked in' });
+    }
+
+    const queueCount = await prisma.ticket.count({ where: { serviceId: existingUnissued.serviceId, status: 'WAITING' } });
+    const estimatedWaitMins = queueCount * 5;
+
+    const ticket = await prisma.ticket.update({
+      where: { id: existingUnissued.id },
+      data: {
+        status: 'WAITING',
+        priorityType,
+        createdByUserId: req.user ? req.user.id : null,
+        createdAt: new Date(),
+        estimatedWaitMins
+      },
+      include: { service: true }
+    });
+
+    const io = require('../config/socket').getIo();
+    io.emit('ticketCreated', ticket);
+    io.emit('queueUpdated', { serviceId: existingUnissued.serviceId });
+
+    if (req.user) await logAudit({
+      ticketId: ticket.id,
+      fromStatus: 'UNISSUED',
+      toStatus: 'WAITING',
+      performedBy: String(req.user.id),
+      note: 'receptionist-checkin'
+    });
+
+    res.json(ticket);
+  } catch (error) {
+    console.error('Error checking in ticket:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
 
 module.exports = {
   getTickets,
@@ -1092,6 +1164,3 @@ module.exports = {
   checkInTicket,
   exportTickets: exports.exportTickets
 };
-
-
-

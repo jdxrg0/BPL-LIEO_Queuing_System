@@ -8,14 +8,14 @@ import BusiestDaysCard from './BusiestDaysCard';
 import CounterUtilizationCard from './CounterUtilizationCard';
 import AbandonmentCard from './AbandonmentCard';
 
-export default function AnalyticsTab({ advanced, year, office, trend }) {
+export default function AnalyticsTab({ advanced, year, office, trend, trendStart, trendEnd, onStartChange, onEndChange }) {
   return (
     <div className="animate-slide-up">
       <QualityMetrics advanced={advanced} year={year} />
       
       {/* Time & Flow Analytics */}
       <div className="mb-6">
-        <AvgTimesChartCard trend={trend} />
+        <AvgTimesChartCard trend={trend} trendStart={trendStart} trendEnd={trendEnd} onStartChange={onStartChange} onEndChange={onEndChange} />
       </div>
 
       {/* Distribution Analytics - Row 1 */}

@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { Calendar } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { api, socket } from '../api';
 
@@ -12,11 +10,12 @@ import AnalyticsTab from '../components/Admin/AnalyticsTab';
 import StaffTab from '../components/Admin/StaffTab';
 import PrintTicketsModal from '../components/Admin/PrintTicketsModal';
 import GlobalPopup from '../components/Admin/GlobalPopup';
+import AuditTab from '../components/Admin/AuditTab';
 
 export default function AdminDashboard() {
   const location = useLocation();
   const [stats, setStats] = useState<any>(null);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -72,12 +71,12 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      setFetchError(null);
       const statsData = await api.getStats(trendStart, trendEnd, filterYear);
       setStats(statsData);
+      setFetchError(false);
     } catch (err: any) {
       console.error('Failed to fetch admin data', err);
-      setFetchError('Failed to load dashboard data. Please try again.');
+      setFetchError(true);
     }
   };
 
@@ -195,15 +194,11 @@ export default function AdminDashboard() {
     return stats?.employees.find(u => u?.id === editingUser?.id);
   }, [stats, editingUser?.id]);
 
-  if (fetchError) return (
-    <div className="h-full flex flex-col items-center justify-center p-8 text-center">
-      <div className="bg-danger/10 text-danger p-6 rounded-xl border border-danger/20 max-w-md w-full">
-        <svg className="w-12 h-12 mx-auto mb-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <h2 className="text-xl font-bold mb-2">Connection Error</h2>
-        <p className="mb-6">{fetchError}</p>
-        <button onClick={() => fetchData()} className="btn btn-primary px-6 py-2 rounded-lg font-bold">
-          Retry Connection
-        </button>
+  if (fetchError && !stats) return (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <h2 className="text-xl font-bold text-danger">Failed to load dashboard.</h2>
+        <button onClick={() => { setFetchError(false); fetchData(); }} className="btn btn-primary px-4 py-2 rounded">Retry</button>
       </div>
     </div>
   );
@@ -217,36 +212,7 @@ export default function AdminDashboard() {
     </div>
   );
 
-  
-  const headerControlsElement = document.getElementById('global-header-controls');
-  const datePickerPortal = headerControlsElement ? createPortal(
-    <div className="flex items-center bg-bg-color p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm w-full sm:w-auto animate-fade-in mr-4">
-      <div className="flex items-center bg-surface px-2 py-1.5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 flex-1 sm:flex-none">
-        <Calendar size={14} className="text-text-muted mr-2" />
-        <input 
-          type="date" 
-          value={trendStart} 
-          onChange={(e) => setTrendStart(e.target.value)} 
-          className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer w-full"
-        />
-      </div>
-      <span className="text-text-muted font-bold text-xs px-2">&rarr;</span>
-      <div className="flex items-center bg-surface px-2 py-1.5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 flex-1 sm:flex-none">
-        <Calendar size={14} className="text-text-muted mr-2" />
-        <input 
-          type="date" 
-          value={trendEnd} 
-          onChange={(e) => setTrendEnd(e.target.value)} 
-          className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer w-full"
-        />
-      </div>
-    </div>,
-    headerControlsElement
-  ) : null;
-
   return (
-    <>
-      {datePickerPortal}
     <div className="container py-4 max-w-[1400px] mx-auto px-6 lg:px-12">
 
       {/* Tab Content */}
@@ -276,11 +242,13 @@ export default function AdminDashboard() {
 
         {activeTab === 'analytics' && stats.advanced && (
           <AnalyticsTab
-            advanced={stats.advanced}
-            year={stats.office.year} office={stats.office} trend={stats.trend}
-            
-            
-          />
+              advanced={stats.advanced}
+              year={stats.office.year} office={stats.office} trend={stats.trend}
+              trendStart={trendStart}
+              trendEnd={trendEnd}
+              onStartChange={setTrendStart}
+              onEndChange={setTrendEnd}
+            />
         )}
 
         {activeTab === 'staff' && (
@@ -293,6 +261,7 @@ export default function AdminDashboard() {
             onAdd={() => setIsModalOpen(true)}
           />
         )}
+        {activeTab === 'audit' && <AuditTab />}
       </div>
 
       {/* Extracted Modals */}
@@ -317,6 +286,10 @@ export default function AdminDashboard() {
       <GlobalPopup popupMessage={popupMessage} onClose={() => setPopupMessage(null)} />
 
     </div>
-    </>
   );
 }
+
+
+
+
+

@@ -13,7 +13,8 @@ let isOffline = false;
 try {
   const serviceAccount = require(path.join(__dirname, '../config/serviceAccountKey.json'));
   
-  const app = initializeApp({
+  if (process.env.NODE_ENV === 'test') { logger.info('Firebase skipped in test'); }
+  const app = process.env.NODE_ENV === 'test' ? {} : initializeApp({
     credential: cert(serviceAccount)
   });
   
@@ -278,6 +279,9 @@ module.exports = {
   syncQueueState,
   getDb: () => db
 };
+
+
+
 
 
 

@@ -1,15 +1,37 @@
 import React from 'react';
+import { Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-export default function AvgTimesChartCard({ trend }) {
+export default function AvgTimesChartCard({ trend, trendStart, trendEnd, onStartChange, onEndChange }) {
   return (
     <div className="bg-surface rounded-3xl p-5 shadow-soft border border-border animate-slide-up" style={{ animationDelay: '0.3s' }}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-2">
         <div>
           <h2 className="m-0 text-lg font-extrabold text-text-main tracking-tight">Wait vs Service Time</h2>
           <p className="text-text-muted mt-0.5 text-xs font-medium">Average time in minutes</p>
+          </div>
+          <div className="flex items-center gap-2 animate-fade-in">
+            <div className="flex items-center bg-bg-color hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-border shadow-sm">
+              <Calendar size={14} className="text-text-muted mr-2" />
+              <input 
+                type="date" 
+                value={trendStart} 
+                onChange={(e) => onStartChange(e.target.value)} 
+                className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer"
+              />
+            </div>
+            <span className="text-text-muted font-bold text-sm hidden sm:block px-1">-</span>
+            <div className="flex items-center bg-bg-color hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-border shadow-sm">
+              <Calendar size={14} className="text-text-muted mr-2" />
+              <input 
+                type="date" 
+                value={trendEnd} 
+                onChange={(e) => onEndChange(e.target.value)} 
+                className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
-      </div>
       <div className="h-64 w-full mt-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

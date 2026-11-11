@@ -347,13 +347,12 @@ const getLiveWaitTimes = async (req, res) => {
     const settings = await prisma.settings.findUnique({ where: { id: 1 } }) || {
       autoBalanceThreshold: 15, slaThreshold: 15, zipperRatio: 3, agingRate: 0.1, skipLimit: 5
     };
-    const recentTickets = await prisma.ticket.findMany({
-      where: { status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
-      orderBy: { servedAt: 'desc' },
-      take: 50
-    });
-
     for (const service of services) {
+      const recentTickets = await prisma.ticket.findMany({
+        where: { serviceId: service.id, status: { in: ['COMPLETED', 'SERVING'] }, servedAt: { not: null } },
+        orderBy: { servedAt: 'desc' },
+        take: settings.zipperRatio || 3
+      });
       const existingQueue = await prisma.ticket.findMany({
         where: { serviceId: service.id, status: 'WAITING' },
         orderBy: { createdAt: 'asc' }
@@ -508,3 +507,17 @@ module.exports = {
 
 
 
+
+const getAuditLogs = async (req, res) => {
+  try {
+    const logs = await prisma.queueAudit.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+    res.json(logs);
+  } catch (error) {
+    console.error('Failed to fetch audit logs:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+module.exports.getAuditLogs = getAuditLogs;

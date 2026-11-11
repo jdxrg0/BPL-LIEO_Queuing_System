@@ -46,6 +46,24 @@ router.get('/my-serving/:userId', verifyToken, ticketController.getMyServing);
 // Zod validates the body BEFORE it reaches the controller!
 router.post('/', verifyToken, validate(createTicketSchema), ticketController.createTicket);
 router.post('/bulk', verifyToken, ticketController.bulkCreateTickets);
+/**
+ * @swagger
+ * /tickets/checkin/{number}:
+ *   post:
+ *     summary: Check-in a pre-printed UNISSUED ticket
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: number
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ticket successfully checked in
+ */
 router.post('/checkin/:number', verifyToken, ticketController.checkInTicket);
 router.delete('/:id', verifyToken, ticketController.deleteTicket);
 
@@ -58,8 +76,31 @@ router.post('/track/:number/sms', ticketController.subscribeToSMS);
 router.get('/export', verifyToken, ticketController.exportTickets);
 
 // Auto-assign: SmartQueueEngine picks the best waiting ticket for the caller's window
+/**
+ * @swagger
+ * /tickets/auto-assign:
+ *   post:
+ *     summary: Auto-assign next ticket to a counter using Smart Queue Engine
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               counterId:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Ticket successfully auto-assigned
+ */
 router.post('/auto-assign', verifyToken, ticketController.autoAssignNext);
 
 module.exports = router;
+
+
 
 

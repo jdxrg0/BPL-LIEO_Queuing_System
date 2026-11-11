@@ -13,7 +13,8 @@ const ADMIN_TABS = [
   { id: 'overview', label: 'Overview', icon: <PieChart size={18} /> },
   { id: 'live', label: 'Live Queue', icon: <Activity size={18} /> },
   { id: 'analytics', label: 'Analytics', icon: <TrendingUp size={18} /> },
-  { id: 'staff', label: 'Staff & Roles', icon: <Users size={18} /> }
+  { id: 'staff', label: 'Staff & Roles', icon: <Users size={18} /> },
+  { id: 'audit', label: 'Audit Log', icon: <Archive size={18} /> }
 ];
 
 export default function Layout({ user, onLogout }) {
@@ -369,7 +370,7 @@ export default function Layout({ user, onLogout }) {
                 Staff Dashboard
               </span>
             </Link>
-            
+
             {user?.role === 'ADMIN' && (
               <>
               <Link 
@@ -485,8 +486,8 @@ export default function Layout({ user, onLogout }) {
             )}
           </div>
 
-          {/* Center (Clock and Date) - Hide on very small screens to prevent overlap */}
-          <div className="hidden lg:flex flex-col items-center justify-center pointer-events-none">
+                      {/* Center (Clock and Date) - Hide on very small screens to prevent overlap */}
+          <div className="hidden xl:flex flex-col items-center justify-center pointer-events-none whitespace-nowrap shrink-0">
             <div className="text-[1.35rem] font-extrabold text-text-main tracking-tight leading-tight">
               {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
@@ -901,6 +902,7 @@ export default function Layout({ user, onLogout }) {
     </div>
   );
 }
+
 
 
 

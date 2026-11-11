@@ -104,7 +104,7 @@ This is a revised 12-slide outline for your Defense Proposal presentation. Based
 
 ## Slide 11: Data Gathered
 **Title: Data Gathering Procedures**
-*   **Assessment Tool:** A customized survey questionnaire based on the ISO/IEC 25010 Software Quality Model (adapted from Malaya et al., 2022).
+*   **Assessment Tool:** A customized survey questionnaire based on the ISO/IEC 25010 Software Quality Model (adapted from Cando & Gerardo, 2020).
 *   **Respondents (Total N = 60):**
     *   **BPL-LIEO Staff:** 10 respondents (Total Enumeration) - evaluating operational efficiency and staff controls.
     *   **Citizens / Clients:** 50 respondents (Convenience Sampling) - evaluating public monitor visibility and process transparency.

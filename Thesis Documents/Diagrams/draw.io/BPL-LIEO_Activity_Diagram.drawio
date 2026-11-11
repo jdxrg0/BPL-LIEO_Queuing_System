@@ -1,0 +1,412 @@
+<mxfile host="app.diagrams.net" agent="Antigravity" pages="2">
+  <diagram id="act-main-swimlane" name="1. End-to-End Queue Workflow (Swimlane)">
+    <mxGraphModel dx="2653" dy="1440" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1350" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="act_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontFamily=Arial;" value="BPL-LIEO Queue Management System&#xa;UML Swimlane Activity Diagram (End-to-End Queue &amp; Service Workflow)" vertex="1">
+          <mxGeometry height="50" width="900" x="350" y="15" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_client" parent="1" style="swimlane;startSize=36;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontStyle=1;fontFamily=Arial;" value="Client / Citizen" vertex="1">
+          <mxGeometry height="1220" width="330" x="40" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="start_node" parent="lane_client" style="ellipse;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="150" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c_select" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Select Transaction Type&#xa;(NW, RNW, R) &amp; Priority Group&#xa;(Regular, PWD, Senior, Pregnant, Returning)" vertex="1">
+          <mxGeometry height="65" width="260" x="35" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="c_receive" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Receive Printed Queue Ticket&#xa;with Scannable QR Code" vertex="1">
+          <mxGeometry height="55" width="240" x="45" y="252.5" as="geometry" />
+        </mxCell>
+        <mxCell id="c_dec_track" parent="lane_client" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f5f9ff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Scan QR&#xa;for Mobile&#xa;Tracking?" vertex="1">
+          <mxGeometry height="80" width="130" x="100" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="c_scan" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Scan QR Code to View Live Rank&#xa;&amp; Opt-In to SMS / Web Push" vertex="1">
+          <mxGeometry height="55" width="240" x="45" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="c_tv" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Monitor Public TV Display&#xa;in Waiting Area" vertex="1">
+          <mxGeometry height="50" width="240" x="45" y="545" as="geometry" />
+        </mxCell>
+        <mxCell id="c_alert" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Receive Approaching Turn Alert&#xa;(Rank &lt;= 2) &amp; Counter Call Alert" vertex="1">
+          <mxGeometry height="55" width="240" x="45" y="655" as="geometry" />
+        </mxCell>
+        <mxCell id="c_proceed" parent="lane_client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Proceed to Assigned Service&#xa;Counter &amp; Present Documents" vertex="1">
+          <mxGeometry height="55" width="240" x="45" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="lane_client" source="start_node" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_select" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="lane_client" source="c_receive" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_dec_track" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="lane_client" source="c_dec_track" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="c_scan" value="[Yes]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="lane_client" source="c_dec_track" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="c_tv" value="[No]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="370" />
+              <mxPoint x="20" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="lane_client" source="c_tv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_alert" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_system" parent="1" style="swimlane;startSize=36;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=14;fontStyle=1;fontFamily=Arial;" value="Smart Queue Engine &amp; System Server (LAN / Firebase / Vonage)" vertex="1">
+          <mxGeometry height="1220" width="500" x="370" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s_gen" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Atomically Generate Daily Ticket Number&#xa;(&amp;lt;PREFIX&amp;gt;-&amp;lt;MMDDYY&amp;gt;-&amp;lt;SEQ&amp;gt;)&#xa;&amp; Run Phantom Queue Simulation for E[W]" vertex="1">
+          <mxGeometry height="65" width="290" x="105" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="s_fork1" parent="lane_system" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#333333;" value="" vertex="1">
+          <mxGeometry height="6" width="320" x="90" y="205" as="geometry" />
+        </mxCell>
+        <mxCell id="s_sync_init" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Save Ticket in SQLite (WAL),&#xa;Sync to Firebase Cloud &amp;&#xa;Print QR Ticket" vertex="1">
+          <mxGeometry height="60" width="205" x="30" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="s_autobal" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Evaluate Counter Load &amp;&#xa;Auto-Balance Staff Allocation&#xa;(Peace vs. Crunch Mode)" vertex="1">
+          <mxGeometry height="60" width="210" x="260" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="s_score" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Compute Smart Score S(t) for All Waiting Tickets&#xa;[ P_base + (W_mins * R_aging) + P_SLA + P_skip + P_zipper ]&#xa;&amp; Re-Sort Queue in Real Time" vertex="1">
+          <mxGeometry height="70" width="350" x="75" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="s_save_sub" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Store Phone Number / Web Push&#xa;Subscription in SQLite &amp; Firebase" vertex="1">
+          <mxGeometry height="55" width="270" x="115" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="s_notify_near" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Check True Rank (R_true &lt;= 2) &amp; Dispatch&#xa;Approaching Turn SMS (Vonage) / Web Push" vertex="1">
+          <mxGeometry height="55" width="290" x="105" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="s_broadcast" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Update Ticket to SERVING, Increment Skipped&#xa;Tickets&#39; skipCount, Broadcast TV Voice/Chime&#xa;&amp; Send Immediate Call SMS / Web Push" vertex="1">
+          <mxGeometry height="65" width="330" x="85" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="s_audit" parent="lane_system" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Update Ticket Status in SQLite &amp; Firebase,&#xa;Append Tamper-Evident QueueAudit Record&#xa;&amp; Re-Compute Queue S(t)" vertex="1">
+          <mxGeometry height="65" width="310" x="50" y="1047.5" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="lane_system" source="s_gen" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_fork1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="lane_system" source="s_fork1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;exitX=0.133;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="s_sync_init" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="lane_system" source="s_fork1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;exitX=0.859;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="s_autobal" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="lane_system" source="s_sync_init" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="s_score" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="lane_system" source="s_autobal" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="s_score" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="lane_system" source="s_score" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_save_sub" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="lane_system" source="s_save_sub" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_notify_near" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_staff" parent="1" style="swimlane;startSize=36;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=14;fontStyle=1;fontFamily=Arial;" value="BPL-LIEO Frontline Staff" vertex="1">
+          <mxGeometry height="1220" width="380" x="870" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="st_call" parent="lane_staff" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Click &quot;Call Next&quot; (Smart Auto-Assign)&#xa;for Allocated Service Queue" vertex="1">
+          <mxGeometry height="55" width="250" x="65" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="st_dec_present" parent="lane_staff" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f2fbf0;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Did Client&#xa;Arrive at&#xa;Counter?" vertex="1">
+          <mxGeometry height="75" width="130" x="20" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="st_recall_no" parent="lane_staff" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Trigger Recall Reminder or&#xa;Mark Ticket as NO_SHOW" vertex="1">
+          <mxGeometry height="55" width="155" x="210" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="st_serve" parent="lane_staff" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Verify Requirements &amp; Process&#xa;BPL-LIEO Permit Transaction" vertex="1">
+          <mxGeometry height="55" width="250" x="65" y="875" as="geometry" />
+        </mxCell>
+        <mxCell id="st_dec_complete" parent="lane_staff" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f2fbf0;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Transaction&#xa;Complete?" vertex="1">
+          <mxGeometry height="75" width="130" x="125" y="950" as="geometry" />
+        </mxCell>
+        <mxCell id="st_postpone" parent="lane_staff" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontFamily=Arial;" value="Mark as POSTPONED&#xa;(Return Tomorrow Priority)" vertex="1">
+          <mxGeometry height="50" width="170" x="15" y="1055" as="geometry" />
+        </mxCell>
+        <mxCell id="st_done" parent="lane_staff" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Mark Transaction as&#xa;COMPLETED (Done)" vertex="1">
+          <mxGeometry height="50" width="165" x="200" y="1055" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="lane_staff" source="st_dec_present" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=10;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="st_recall_no" value="[Absent]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="lane_staff" source="st_serve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="st_dec_complete" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="lane_staff" source="st_dec_complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=10;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="st_postpone" value="[Incomplete]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="lane_staff" source="st_dec_complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=10;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="st_done" value="[Completed]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_admin" parent="1" style="swimlane;startSize=36;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=14;fontStyle=1;fontFamily=Arial;" value="BPL-LIEO Administrator" vertex="1">
+          <mxGeometry height="1220" width="310" x="1250" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_config" parent="lane_admin" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#d6b656;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Configure Counters, Priority&#xa;Weights, SLA &amp; Zipper Rules" vertex="1">
+          <mxGeometry height="60" width="240" x="35" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="adm_stats" parent="lane_admin" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#d6b656;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Monitor Live SLA Adherence,&#xa;YoY Trends, Staff Performance&#xa;&amp; Queue Audit Reports" vertex="1">
+          <mxGeometry height="65" width="240" x="35" y="1045" as="geometry" />
+        </mxCell>
+        <mxCell id="end_outer" parent="lane_admin" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="32" width="32" x="139" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="end_inner" parent="lane_admin" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="145" y="1156" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="lane_admin" source="adm_stats" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="end_outer" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="c_select" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_gen" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_adm_cfg" edge="1" parent="1" source="adm_config" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeWidth=1.5;fontSize=10;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="s_autobal" value="SLA &amp; Priority Rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="s_sync_init" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_receive" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="c_scan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_save_sub" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="s_score" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="st_call" value="Sorted Queue">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="455" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="st_call" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_broadcast" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="830" y="647.5" />
+              <mxPoint x="830" y="762.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="s_notify_near" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_alert" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="647.5" />
+              <mxPoint x="430" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="s_broadcast" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="c_alert" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="c_alert" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="st_dec_present" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="205" y="810" />
+              <mxPoint x="955" y="810" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="st_dec_present" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="c_proceed" value="[Present]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="c_proceed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="st_serve" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="205" y="982.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="st_recall_no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="s_audit" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1244" y="867.5" />
+              <mxPoint x="1244" y="1256" />
+              <mxPoint x="530" y="1256" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="st_postpone" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_audit" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="st_done" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="s_audit" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1152.5" y="1238" />
+              <mxPoint x="580" y="1238" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="s_audit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontFamily=Arial;labelBackgroundColor=#ffffff;" target="adm_stats" value="Aggregated Metrics &amp; Audit Logs">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="1220" />
+              <mxPoint x="1310" y="1220" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="act-smart-algorithm" name="2. Smart Queue &amp; Auto-Balancing Algorithm Flow">
+    <mxGraphModel dx="1300" dy="1100" grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1300" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="alg_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=17;fontStyle=1;fontFamily=Arial;" value="BPL-LIEO Smart Queue Engine&#xa;Activity Diagram (Smart Score S(t) &amp; Peace/Crunch Counter Auto-Balancing)" vertex="1">
+          <mxGeometry height="50" width="800" x="250" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="a_start" parent="1" style="ellipse;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="635" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="a_init" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Receive Queue Event Trigger&#xa;(Ticket Created, Called, Skipped, or 5-Min Timer)&#xa;&amp; Load Active Tickets, PriorityGroups, and Settings" vertex="1">
+          <mxGeometry height="65" width="380" x="460" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="a_fork" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#333333;" value="" vertex="1">
+          <mxGeometry height="6" width="800" x="250" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="a_base" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Initialize Score for Ticket t:&#xa;S(t) = P_base + (W_mins * R_aging)" vertex="1">
+          <mxGeometry height="55" width="300" x="190" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="a_dec_sla" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="W_mins &gt;=&#xa;SLA Threshold?" vertex="1">
+          <mxGeometry height="75" width="150" x="265" y="365" as="geometry" />
+        </mxCell>
+        <mxCell id="a_add_sla" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Add SLA Panic Bonus&#xa;(+100 pts)" vertex="1">
+          <mxGeometry height="50" width="165" x="20" y="377.5" as="geometry" />
+        </mxCell>
+        <mxCell id="a_dec_skip" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="skipCount &gt;=&#xa;Skip Limit (5)?" vertex="1">
+          <mxGeometry height="75" width="150" x="265" y="495" as="geometry" />
+        </mxCell>
+        <mxCell id="a_add_skip" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Add Stoplight Skip Bonus&#xa;(+500 pts)" vertex="1">
+          <mxGeometry height="50" width="165" x="20" y="507.5" as="geometry" />
+        </mxCell>
+        <mxCell id="a_dec_zip" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#9673a6;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Last N Served&#xa;All Priority &amp;&#xa;Oldest Regular?" vertex="1">
+          <mxGeometry height="85" width="160" x="260" y="625" as="geometry" />
+        </mxCell>
+        <mxCell id="a_add_zip" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#ffffff;strokeColor=#9673a6;strokeWidth=1.8;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Add Zipper Force Bonus&#xa;(+1000 pts)" vertex="1">
+          <mxGeometry height="50" width="165" x="20" y="642.5" as="geometry" />
+        </mxCell>
+        <mxCell id="a_sort" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Sort Waiting Queue Descending by S(t)&#xa;(Tie-Break by Oldest createdAt Timestamp)&#xa;&amp; Compute Phantom Wait Time E[W]" vertex="1">
+          <mxGeometry height="65" width="320" x="180" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="a_load" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Compute Weighted Service Load per Queue&#xa;Load_s = Sum(1 + PriorityWeight) * T_avg&#xa;&amp; Check Oldest Waiting Ticket (3x SLA Floor)" vertex="1">
+          <mxGeometry height="65" width="340" x="780" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="a_dec_crunch" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fffdf5;strokeColor=#d6b656;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Max Load &gt;=&#xa;1.5x Threshold&#xa;or 3x SLA Breached?" vertex="1">
+          <mxGeometry height="95" width="180" x="860" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="a_peace" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Set PEACE MODE:&#xa;Assign All Auto-Assignable&#xa;Counters to Cater All Services&#xa;(NW, RNW, R)" vertex="1">
+          <mxGeometry height="75" width="220" x="666" y="592" as="geometry" />
+        </mxCell>
+        <mxCell id="a_crunch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;fontStyle=1;fontFamily=Arial;" value="Set CRUNCH MODE:&#xa;Proportional &quot;Robin Hood&quot; Window&#xa;Allocation Across Active Queues +&#xa;Minimum 1-Staff Coverage Guarantee" vertex="1">
+          <mxGeometry height="75" width="240" x="1030" y="592" as="geometry" />
+        </mxCell>
+        <mxCell id="a_emit_bal" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Persist Counter Catering Flags in SQLite&#xa;&amp; Broadcast Socket.io Updates" vertex="1">
+          <mxGeometry height="65" width="320" x="790" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="a_join" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#333333;" value="" vertex="1">
+          <mxGeometry height="6" width="800" x="250" y="885" as="geometry" />
+        </mxCell>
+        <mxCell id="a_final_bcast" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;fontStyle=1;fontFamily=Arial;" value="Broadcast Updated Queue State, Wait Times E[W],&#xa;and Approaching Turn Alerts Across LAN &amp; Cloud" vertex="1">
+          <mxGeometry height="60" width="360" x="470" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="a_end_out" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2;" value="" vertex="1">
+          <mxGeometry height="32" width="32" x="634" y="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="a_end_in" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="640" y="1036" as="geometry" />
+        </mxCell>
+        <mxCell id="ae1" edge="1" parent="1" source="a_start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_init" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2" edge="1" parent="1" source="a_init" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_fork" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3" edge="1" parent="1" source="a_fork" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;exitX=0.1125;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="a_base" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae4" edge="1" parent="1" source="a_fork" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;exitX=0.875;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="a_load" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae5" edge="1" parent="1" source="a_base" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_dec_sla" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae6" edge="1" parent="1" source="a_dec_sla" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_add_sla" value="[Yes]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae7" edge="1" parent="1" source="a_dec_sla" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_dec_skip" value="[No]">
+          <mxGeometry relative="1" x="-0.4" as="geometry" />
+        </mxCell>
+        <mxCell id="ae8" edge="1" parent="1" source="a_add_sla" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="a_dec_skip" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="102.5" y="478" />
+              <mxPoint x="340" y="478" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae9" edge="1" parent="1" source="a_dec_skip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_add_skip" value="[Yes]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae10" edge="1" parent="1" source="a_dec_skip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_dec_zip" value="[No]">
+          <mxGeometry relative="1" x="-0.4" as="geometry" />
+        </mxCell>
+        <mxCell id="ae11" edge="1" parent="1" source="a_add_skip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="a_dec_zip" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="102.5" y="608" />
+              <mxPoint x="340" y="608" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae12" edge="1" parent="1" source="a_dec_zip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_add_zip" value="[Yes]">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae13" edge="1" parent="1" source="a_dec_zip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;" target="a_sort" value="[No]">
+          <mxGeometry relative="1" x="-0.4" as="geometry" />
+        </mxCell>
+        <mxCell id="ae14" edge="1" parent="1" source="a_add_zip" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="a_sort" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="102.5" y="750" />
+              <mxPoint x="340" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae15" edge="1" parent="1" source="a_load" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_dec_crunch" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae16" edge="1" parent="1" source="a_dec_crunch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" target="a_peace" value="[No — Normal Load]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="776" y="442.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae17" edge="1" parent="1" source="a_dec_crunch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;fontSize=11;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="a_crunch" value="[Yes — High Load / SLA Breach]">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1150" y="442.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ae18" edge="1" parent="1" source="a_peace" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="a_emit_bal" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae19" edge="1" parent="1" source="a_crunch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="a_emit_bal" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae20" edge="1" parent="1" source="a_sort" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.1125;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="a_join" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae21" edge="1" parent="1" source="a_emit_bal" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;entryX=0.875;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="a_join" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae22" edge="1" parent="1" source="a_join" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_final_bcast" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae23" edge="1" parent="1" source="a_final_bcast" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=1.8;" target="a_end_out" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

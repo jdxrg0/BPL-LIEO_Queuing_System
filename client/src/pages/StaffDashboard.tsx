@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api, socket } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -133,10 +134,11 @@ export default function StaffDashboard({ user }: { user: User }) {
     getServiceSlots(services).forEach((slot: any) => { map[slot.service.prefix] = slot.style; });
     return map;
   }, [services]);
-  const queuesBySlot = useMemo(() => serviceSlots.map((slot: any) => ({
-    ...slot,
-    tickets: queue.filter(t => t.service?.id === slot.service.id)
-  })), [serviceSlots, queue]);
+  const queuesBySlot = useMemo(() => 
+    serviceSlots.map((slot: any) => ({
+      ...slot,
+      tickets: queue.filter(t => t.service?.id === slot.service.id)
+    })), [serviceSlots, queue]);
 
   const renderQueueList = (slot: any, filteredQueue: Ticket[], columnIndex: number) => {
     
@@ -145,7 +147,7 @@ export default function StaffDashboard({ user }: { user: User }) {
       border: slot.style.border,
       bgFill: slot.style.bgFill
     };
-    const isCatered = user ? (user.role === 'ADMIN' || !!user[slot.flag as keyof User]) : false;
+    const isCatered = user ? !!user[slot.flag as keyof User] : false;
     
     return (
       <div className={`md:flex-1 md:min-h-0 flex flex-col p-3 bg-surface border ${themeColors.border} rounded-2xl shadow-sm transition-all duration-300 animate-tab-enter ${isCatered ? 'opacity-100 hover:shadow-md' : 'opacity-50 grayscale'}`} style={{ animationDelay: `${columnIndex * 0.08}s`, animationFillMode: 'both' }}>
@@ -162,11 +164,12 @@ export default function StaffDashboard({ user }: { user: User }) {
           </div>
         ) : (
           <div className="md:flex-1 md:overflow-y-auto pr-1 flex flex-col gap-1.5 relative">
+            <AnimatePresence mode="popLayout">
             {filteredQueue.map((ticket, index) => (
-              <div 
+              <motion.div 
                 key={ticket.id} 
-                className={`flex justify-between items-center p-2 bg-surface rounded-xl border ${themeColors.border} shrink-0 gap-2 shadow-sm animate-tab-enter`}
-                style={{ animationDelay: `${(columnIndex * 0.08) + (index * 0.05) + 0.1}s`, animationFillMode: 'both' }}
+                layout initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, filter: 'blur(3px)' }} transition={{ layout: { type: 'spring', bounce: 0.2, duration: 0.6 }, opacity: { duration: 0.2 }, scale: { type: 'spring', bounce: 0.2, duration: 0.6 } }}
+                className={`flex justify-between items-center p-2 bg-surface rounded-xl border ${themeColors.border} shrink-0 gap-2 shadow-sm transition-shadow hover:shadow-md`}
               >
                 <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                   <span className={`text-sm font-black tracking-tight ${themeColors.text} whitespace-nowrap`}>{ticket.number}</span>
@@ -196,8 +199,9 @@ export default function StaffDashboard({ user }: { user: User }) {
                     style={{ fontSize: '0.7rem', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', fontWeight: 'bold' }}
                   />
                 </div>
-              </div>
+              </motion.div>
             ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -221,56 +225,59 @@ export default function StaffDashboard({ user }: { user: User }) {
             </h1>
             <p className="text-xs font-semibold text-text-muted mt-0.5 m-0 uppercase tracking-widest">{activeCounterName}</p>
           </div>
-          <button 
-            onClick={() => setShowReturnsModal(true)} 
-            className="group relative px-4 py-1.5 bg-surface border border-warning text-warning rounded-lg font-bold text-sm cursor-pointer hover:bg-warning hover:text-white transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-warning w-0 group-hover:w-full transition-all duration-300 ease-out z-0"></div>
-            <Undo2 size={14} className="relative z-10" />
-            <span className="relative z-10">Returns {postponedTickets.length > 0 && `(${postponedTickets.length})`}</span>
-          </button>
-          
-          <button 
-            onClick={async () => {
-              if (!activeCounterId) {
-                setToastMessage({ title: 'Error', message: 'You are not assigned to a window. Contact an Admin.', type: 'error' });
-                return;
-              }
-              setIsAutoCalling(true);
-              try {
-                await api.autoAssignNext(activeCounterId, user.id);
-                // Success, queue will update via websocket
-              } catch (err: any) {
-                setToastMessage({ title: 'Notice', message: err.message || 'No suitable tickets found for your services.', type: 'info' });
-              } finally {
-                setIsAutoCalling(false);
-              }
-            }}
-            disabled={!activeCounterId || isAutoCalling}
-            className="ml-3 group relative px-4 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-sm cursor-pointer hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isAutoCalling ? (
-              <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Auto-Calling...</>
-            ) : (
-              <>⚡ Auto-Call Next</>
-            )}
-          </button>
+          <div className="flex items-center gap-2.5">
+            <button 
+              onClick={() => setShowReturnsModal(true)} 
+              className="group relative px-4 py-1.5 bg-surface border border-warning text-warning rounded-lg font-bold text-sm cursor-pointer hover:bg-warning hover:text-white transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-warning w-0 group-hover:w-full transition-all duration-300 ease-out z-0"></div>
+              <Undo2 size={14} className="relative z-10" />
+              <span className="relative z-10">Returns {postponedTickets.length > 0 && `(${postponedTickets.length})`}</span>
+            </button>
+            
+            <button 
+              onClick={async () => {
+                if (!activeCounterId) {
+                  setToastMessage({ title: 'Error', message: 'You are not assigned to a window. Contact an Admin.', type: 'error' });
+                  return;
+                }
+                setIsAutoCalling(true);
+                try {
+                  await api.autoAssignNext(activeCounterId, user.id);
+                  // Success, queue will update via websocket
+                } catch (err: any) {
+                  setToastMessage({ title: 'Notice', message: err.message || 'No suitable tickets found for your services.', type: 'info' });
+                } finally {
+                  setIsAutoCalling(false);
+                }
+              }}
+              disabled={!activeCounterId || isAutoCalling}
+              className="group relative px-4 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-sm cursor-pointer hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isAutoCalling ? (
+                <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span> Auto-Calling...</>
+              ) : (
+                <>Auto-Call Next</>
+              )}
+            </button>
+          </div>
         </div>
         
-        <div ref={scrollContainerRef} className="flex overflow-x-auto pb-2 gap-3">
+        <div ref={scrollContainerRef} className="flex overflow-x-auto pb-2 gap-3 min-h-[172px]">
           {currentServingList.length === 0 ? (
-             <div className="w-full bg-surface border border-border rounded-3xl p-8 flex items-center justify-center shadow-soft">
+             <div className="w-full flex-1 bg-surface border border-border rounded-3xl flex items-center justify-center shadow-soft">
                <p className="text-text-muted m-0 text-lg font-medium text-center">No ticket currently serving. Call the next from the queue.</p>
              </div>
           ) : (
-            currentServingList.map((ticket, i) => {
+            <AnimatePresence mode="popLayout">
+            {currentServingList.map((ticket, i) => {
               const colors = (() => {
                 const style = styleByPrefix[ticket.service?.prefix || ''] || DEFAULT_SLOT_STYLE;
                 return { bg: style.bg, border: style.border, text: style.text, grad: style.grad };
               })();
               
               return (
-              <div key={ticket.id} className={`w-[300px] shrink-0 bg-surface border ${colors.border} rounded-2xl p-3 shadow-sm flex flex-col gap-3 animate-slide-up hover:shadow-md transition-all relative overflow-hidden`} style={{ animationDelay: `${i*0.1}s` }}>
+              <motion.div key={ticket.id} layout initial={{ opacity: 0, scale: 0.95, y: -15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, filter: 'blur(3px)' }} transition={{ layout: { type: 'spring', bounce: 0.2, duration: 0.6 }, opacity: { duration: 0.2 }, scale: { type: 'spring', bounce: 0.2, duration: 0.6 } }} className={`w-[300px] shrink-0 bg-surface border ${colors.border} rounded-2xl p-3 shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow relative overflow-hidden`}>
                 
                 {/* Decorative background blur */}
                 <div className={`absolute -right-8 -top-8 w-24 h-24 bg-gradient-to-br ${colors.grad} opacity-10 blur-xl rounded-full pointer-events-none`}></div>
@@ -316,8 +323,9 @@ export default function StaffDashboard({ user }: { user: User }) {
                     Hold
                   </HoldActionBtn>
                 </div>
-              </div>
-            )})
+              </motion.div>
+            )})}
+            </AnimatePresence>
           )}
         </div>
       </div>
@@ -346,8 +354,9 @@ export default function StaffDashboard({ user }: { user: User }) {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
+                <AnimatePresence mode="popLayout">
                 {postponedTickets.map(ticket => (
-                  <div key={ticket.id} className="flex justify-between items-center p-4 bg-surface border border-warning/30 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                  <motion.div key={ticket.id} layout initial={{ opacity: 0, scale: 0.95, x: -10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.95, filter: 'blur(3px)' }} transition={{ layout: { type: 'spring', bounce: 0.2, duration: 0.6 }, opacity: { duration: 0.2 }, scale: { type: 'spring', bounce: 0.2, duration: 0.6 } }} className="flex justify-between items-center p-4 bg-surface border border-warning/30 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-4">
                       <span className="text-2xl font-black text-warning tracking-tight">{ticket.number}</span>
                       <div className="flex flex-col">
@@ -364,8 +373,9 @@ export default function StaffDashboard({ user }: { user: User }) {
                     >
                       <Check size={16} /> Arrived
                     </button>
-                  </div>
+                  </motion.div>
                 ))}
+                </AnimatePresence>
               </div>
             )}
           </div>

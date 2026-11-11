@@ -125,6 +125,12 @@ export const api = {
   getLiveFlow: async () => {
     return request(`${API_URL}/stats/live-flow`, { headers: getAuthHeaders() as any });
   },
+  getStaffStatus: async () => {
+    return request(`${API_URL}/stats/staff-status`);
+  },
+  getAuditLogs: async () => {
+    return request(`${API_URL}/audit-logs`, { headers: getAuthHeaders() as any });
+  },
 
   getStats: async (startDate: any = null, endDate: any = null, year: any = null) => {
     let url = `${API_URL}/stats?`;
@@ -194,6 +200,13 @@ export const api = {
   callTicket: async (ticketId, counterId, servedByUserId) => {
     return request(`${API_URL}/tickets/${ticketId}/call`, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ counterId, servedByUserId })
+    });
+  },
+  autoAssignNext: async (counterId, servedByUserId) => {
+    return request(`${API_URL}/tickets/auto-assign`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ counterId, servedByUserId })
     });

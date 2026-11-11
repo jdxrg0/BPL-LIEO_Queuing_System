@@ -27,8 +27,28 @@ export default function TicketsChartCard({ trend, trendStart, trendEnd, onStartC
           </div>
           <p className="text-text-muted m-0 text-sm font-medium">Daily completed tickets broken down by application type</p>
         </div>
-        
-        
+
+        <div className="flex items-center gap-2 animate-fade-in">
+          <div className="flex items-center bg-bg-color hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-border shadow-sm">
+            <Calendar size={14} className="text-text-muted mr-2" />
+            <input 
+              type="date" 
+              value={trendStart} 
+              onChange={(e) => onStartChange(e.target.value)} 
+              className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer"
+            />
+          </div>
+          <span className="text-text-muted font-bold text-sm hidden sm:block px-1">-</span>
+          <div className="flex items-center bg-bg-color hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-border shadow-sm">
+            <Calendar size={14} className="text-text-muted mr-2" />
+            <input 
+              type="date" 
+              value={trendEnd} 
+              onChange={(e) => onEndChange(e.target.value)} 
+              className="bg-transparent text-xs font-bold text-text-main outline-none border-none cursor-pointer"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-5 mb-6 px-1">

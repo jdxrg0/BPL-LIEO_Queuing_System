@@ -1,6 +1,5 @@
 export {};
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -28,13 +27,12 @@ async function main() {
   });
 
   // 3. Create Default Admin User
-  // Password is hashed with bcrypt (cost factor 10). Default: admin123
-  // IMPORTANT: Change this password immediately after first login.
-  const defaultPasswordHash = await bcrypt.hash('admin123', 10);
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = bcrypt.hashSync('admin123', 10);
   await prisma.user.create({
     data: {
       username: 'admin',
-      passwordHash: defaultPasswordHash,
+      passwordHash: hashedPassword, 
       name: 'System Administrator',
       role: 'ADMIN'
     }

@@ -580,12 +580,11 @@ export default function SettingsModal({
                     <div key={group.id} className="p-3 bg-bg-color/50 dark:bg-black/10 rounded-xl border border-border/40 shadow-sm transition-all hover:border-primary/30 backdrop-blur-sm">
                       {editingGroupId === group.id ? (
                         <div className="animate-slide-up">
-                          <div className="grid grid-cols-4 gap-3 mb-3">
-                            <InputGroup label="Internal Name" value={editGroupForm.name} onChange={val => setEditGroupForm(prev => ({...prev, name: val.toUpperCase().replace(/\s+/g, '_')}))} inputClass={inputClass} />
+                          <div className="grid grid-cols-3 gap-3 mb-3">
                             <InputGroup label="Display Label" value={editGroupForm.label} onChange={val => setEditGroupForm(prev => ({...prev, label: val}))} inputClass={inputClass} />
                             <InputGroup label="Short Label" value={editGroupForm.shortLabel} onChange={val => setEditGroupForm(prev => ({...prev, shortLabel: val.toUpperCase()}))} inputClass={inputClass} />
                             <InputGroup label="Weight" type="number" min={1} value={editGroupForm.weight} onChange={val => setEditGroupForm(prev => ({...prev, weight: parseInt(val)||1}))} inputClass={inputClass} />
-                            <div className="col-span-4">
+                            <div className="col-span-3">
                               <InputGroup label="Custom SLA Threshold (Mins)" type="number" min={1} value={editGroupForm.slaThreshold} onChange={val => setEditGroupForm(prev => ({...prev, slaThreshold: val ? parseInt(val) : ''}))} placeholder="Leave empty for global SLA" inputClass={inputClass} />
                             </div>
                           </div>
@@ -614,7 +613,7 @@ export default function SettingsModal({
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => { setEditingGroupId(group.id); setEditGroupForm({ name: group.name, label: group.label, shortLabel: group.shortLabel || '', weight: group.weight, slaThreshold: group.slaThreshold || '', isActive: group.isActive }); }} className="p-2 rounded-lg bg-surface border border-border text-text-muted cursor-pointer hover:text-primary hover:border-primary transition-colors text-xs">✎</button>
+                            <button onClick={() => { setEditingGroupId(group.id); setEditGroupForm({ label: group.label, shortLabel: group.shortLabel || '', weight: group.weight, slaThreshold: group.slaThreshold || '', isActive: group.isActive }); }} className="p-2 rounded-lg bg-surface border border-border text-text-muted cursor-pointer hover:text-primary hover:border-primary transition-colors text-xs">✎</button>
                             <button onClick={() => handleDeletePriorityGroup(group.id)} className="p-2 rounded-lg bg-surface border border-border text-text-muted cursor-pointer hover:text-danger hover:border-danger transition-colors text-xs">×</button>
                           </div>
                         </div>
